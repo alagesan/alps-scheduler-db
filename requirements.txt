@@ -1,0 +1,27 @@
+Intent
+
+Need a batch application that runs two times a day one at 7 am IST and other at 7 pm IST. As part of the batch processing it needs to send a mail to receipents reservations@alpsresidencymadurai.in
+
+Inputs
+
+Scheduler-Master.csv file which is part of this project should provide the items that are scheduled
+Column Activity captures the task or activity that needs to be performed
+Column Dept captures the department that needs to perform the task
+Column Frequency captures the frequency at which the task needs to be performed
+Column NoOfTimes captures the number of times the task need to be perfomed say for example twice a week
+Column Specific Dates provide the particular date on which the task has to be performed. This will be the first priority to decide on the task for a particular date  
+Column comments provide additional inputs to decide on the day  
+
+Outputs
+
+Following are the outputs expected of this 
+a) a batch application that will send the mails two days everyday
+b) a PWA application that will help the users present the tasks with department details day wise, month wise or quarter wise or half-yearly or yearly
+
+Tech Stack Constraints
+
+Use ReactJS for PWA
+Use Spring boot for the batch application
+Use Spring boot for the API application
+Use the CSV file scheduler-master local to get the tasks or activity details required for the APIs. Ensure the updated csv file can be pushed to the API app volume and both the batch and API applications can pick the latest details without restarting them
+Deploy the PWA app, batch app and the API app to docker containers on the docker installed locally

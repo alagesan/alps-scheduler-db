@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #2c3e50;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 28px;
+        }
+        .header h2 {
+            color: #34495e;
+            margin: 5px 0;
+            font-size: 20px;
+            font-weight: normal;
+        }
+        .date-info {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 25px;
+        }
+        .date-info p {
+            margin: 5px 0;
+            font-size: 16px;
+        }
+        .section-title {
+            background-color: #34495e;
+            color: white;
+            padding: 12px 15px;
+            border-radius: 5px;
+            margin: 25px 0 15px 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .department {
+            margin-bottom: 25px;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }
+        .department h3 {
+            color: #2980b9;
+            margin: 10px 0;
+            font-size: 18px;
+        }
+        .task-count {
+            color: #7f8c8d;
+            font-size: 14px;
+            font-weight: normal;
+        }
+        .task-list {
+            list-style: none;
+            padding: 0;
+        }
+        .task-item {
+            padding: 10px;
+            margin: 8px 0;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 3px solid #3498db;
+        }
+        .task-name {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .task-frequency {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .task-note {
+            color: #e74c3c;
+            font-size: 13px;
+            font-style: italic;
+            margin-top: 5px;
+        }
+        .week-section {
+            margin-top: 30px;
+        }
+        .day-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .day-header {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 16px;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #bdc3c7;
+        }
+        .day-task-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        .day-task-item {
+            padding: 5px 0 5px 20px;
+            position: relative;
+            color: #34495e;
+        }
+        .day-task-item:before {
+            content: "•";
+            position: absolute;
+            left: 5px;
+            color: #3498db;
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #ecf0f1;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>ALPS Residency Madurai</h1>
+            <h2>Daily Task Schedule</h2>
+        </div>
+
+        <div class="date-info">
+            <p><strong>Date:</strong> <span th:text="${todayFormatted}"></span></p>
+            <p><strong>Schedule:</strong> <span th:text="${scheduleTime}"></span></p>
+        </div>
+
+        <div class="section-title">TASKS FOR TODAY</div>
+
+        <div th:if="${#maps.isEmpty(todayTasksByDept)}">
+            <p style="text-align: center; color: #7f8c8d; padding: 20px;">No tasks scheduled for today.</p>
+        </div>
+
+        <div th:each="entry : ${todayTasksByDept}">
+            <div class="department">
+                <h3>
+                    <span th:text="${entry.key}"></span>
+                    <span class="task-count" th:text="'(' + ${#lists.size(entry.value)} + ' tasks)'"></span>
+                </h3>
+                <ul class="task-list">
+                    <li class="task-item" th:each="task : ${entry.value}">
+                        <div class="task-name" th:text="${task.activity}"></div>
+                        <div class="task-frequency" th:text="${task.frequency}"></div>
+                        <div class="task-note" th:if="${task.comments != null and !#strings.isEmpty(task.comments)}">
+                            Note: <span th:text="${task.comments}"></span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="week-section">
+            <div class="section-title" th:text="'ALL TASKS FOR THIS WEEK (' + ${weekRange} + ')'"></div>
+
+            <div th:each="entry : ${weekTasks}">
+                <div class="day-section">
+                    <div class="day-header" th:text="${entry.key}"></div>
+                    <ul class="day-task-list">
+                        <li class="day-task-item" th:each="task : ${entry.value}">
+                            <span th:text="${task.activity}"></span>
+                            <span style="color: #7f8c8d;" th:text="' - ' + ${task.department}"></span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>This is an automated reminder sent at <span th:text="${scheduleTime}"></span></p>
+            <p th:text="${nextScheduleMessage}"></p>
+            <hr style="border: none; border-top: 1px solid #ecf0f1; margin: 15px 0;">
+            <p><strong>ALPS Residency Madurai</strong><br>Automated Scheduler System</p>
+        </div>
+    </div>
+</body>
+</html>

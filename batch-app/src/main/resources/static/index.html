@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALPS Scheduler - Batch Control Panel</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .card h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .button-group {
+            display: grid;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #2980b9;
+        }
+
+        .btn-info {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn-info:hover:not(:disabled) {
+            background: #7f8c8d;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .status-box {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .status-box.success {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+
+        .status-box.error {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+
+        .status-box.info {
+            border-color: #17a2b8;
+            background: #d1ecf1;
+        }
+
+        .status-box pre {
+            margin: 10px 0 0 0;
+            font-size: 13px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ALPS Scheduler - Batch Control Panel</h1>
+        <p class="subtitle">Manually trigger email jobs and view batch status</p>
+
+        <div class="card">
+            <h2>📊 Batch Status</h2>
+            <div class="info-grid" id="statusGrid">
+                <div class="info-item">
+                    <div class="info-label">Status</div>
+                    <div class="info-value" id="statusValue">Loading...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Recipient</div>
+                    <div class="info-value" id="recipientValue">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Current Date</div>
+                    <div class="info-value" id="dateValue">-</div>
+                </div>
+            </div>
+            <button class="btn btn-info" onclick="loadStatus()">🔄 Refresh Status</button>
+        </div>
+
+        <div class="card">
+            <h2>📧 Send Email Now</h2>
+            <p style="color: #7f8c8d; margin-bottom: 15px;">Trigger the email job for today's tasks</p>
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="sendEmail()" id="sendBtn">
+                    📨 Send Email for Today
+                </button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📅 Send Email for Specific Date</h2>
+            <div class="input-group">
+                <label for="specificDate">Select Date:</label>
+                <input type="date" id="specificDate" value="">
+            </div>
+            <div class="input-group">
+                <label for="scheduleTime">Schedule Time Label (Optional):</label>
+                <input type="text" id="scheduleTime" placeholder="e.g., Manual Test, Special Run" value="Manual Trigger">
+            </div>
+            <div class="button-group">
+                <button class="btn btn-secondary" onclick="sendEmailForDate()" id="sendDateBtn">
+                    📨 Send Email for Selected Date
+                </button>
+            </div>
+        </div>
+
+        <div id="responseContainer"></div>
+    </div>
+
+    <script>
+        // Set default date to today
+        document.getElementById('specificDate').value = new Date().toISOString().split('T')[0];
+
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/batch/status');
+                const data = await response.json();
+
+                document.getElementById('statusValue').textContent = data.status.toUpperCase();
+                document.getElementById('recipientValue').textContent = data.recipient;
+                document.getElementById('dateValue').textContent = data.currentDate;
+            } catch (error) {
+                console.error('Error loading status:', error);
+                document.getElementById('statusValue').textContent = 'ERROR';
+            }
+        }
+
+        async function sendEmail() {
+            const btn = document.getElementById('sendBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Sending...';
+
+            showResponse('info', 'Sending email...', '');
+
+            try {
+                const response = await fetch('/api/batch/send-email', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    showResponse('success', '✅ Email sent successfully!', JSON.stringify(data, null, 2));
+                } else {
+                    showResponse('error', '❌ Failed to send email', data.message || JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showResponse('error', '❌ Error occurred', error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        async function sendEmailForDate() {
+            const btn = document.getElementById('sendDateBtn');
+            const date = document.getElementById('specificDate').value;
+            const scheduleTime = document.getElementById('scheduleTime').value || 'Manual Trigger';
+
+            if (!date) {
+                showResponse('error', '❌ Please select a date', '');
+                return;
+            }
+
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Sending...';
+
+            showResponse('info', 'Sending email for ' + date + '...', '');
+
+            try {
+                const url = `/api/batch/send-email/date/${date}?scheduleTime=${encodeURIComponent(scheduleTime)}`;
+                const response = await fetch(url, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    showResponse('success', '✅ Email sent successfully!', JSON.stringify(data, null, 2));
+                } else {
+                    showResponse('error', '❌ Failed to send email', data.message || JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showResponse('error', '❌ Error occurred', error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        function showResponse(type, message, details) {
+            const container = document.getElementById('responseContainer');
+            container.innerHTML = `
+                <div class="card">
+                    <div class="status-box ${type}">
+                        <strong>${message}</strong>
+                        ${details ? `<pre>${details}</pre>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Load status on page load
+        loadStatus();
+    </script>
+</body>
+</html>

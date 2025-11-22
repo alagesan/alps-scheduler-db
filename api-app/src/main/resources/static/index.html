@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALPS Scheduler - API Test Page</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+
+        .api-config {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+
+        .api-config label {
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        .api-config input {
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            width: 400px;
+            font-size: 14px;
+        }
+
+        .endpoints {
+            display: grid;
+            gap: 15px;
+        }
+
+        .endpoint-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .endpoint-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .endpoint-header {
+            background: #f8f9fa;
+            padding: 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .endpoint-header:hover {
+            background: #e9ecef;
+        }
+
+        .endpoint-method {
+            background: #28a745;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .endpoint-path {
+            flex: 1;
+            font-family: 'Courier New', monospace;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .endpoint-description {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .endpoint-body {
+            padding: 15px;
+            display: none;
+            background: white;
+        }
+
+        .endpoint-body.active {
+            display: block;
+        }
+
+        .param-group {
+            margin-bottom: 15px;
+        }
+
+        .param-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+
+        .param-group input,
+        .param-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .param-group input:focus,
+        .param-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .test-button {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            width: 100%;
+        }
+
+        .test-button:hover {
+            background: #5568d3;
+        }
+
+        .test-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .response-section {
+            margin-top: 15px;
+            display: none;
+        }
+
+        .response-section.active {
+            display: block;
+        }
+
+        .response-header {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .response-box {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 15px;
+            max-height: 400px;
+            overflow: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+
+        .response-box.success {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+
+        .response-box.error {
+            border-color: #dc3545;
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .status-200 {
+            background: #28a745;
+            color: white;
+        }
+
+        .status-error {
+            background: #dc3545;
+            color: white;
+        }
+
+        .category-header {
+            background: #2c3e50;
+            color: white;
+            padding: 12px 15px;
+            border-radius: 5px;
+            margin: 20px 0 15px 0;
+            font-size: 16px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ALPS Scheduler API Test Page</h1>
+        <p class="subtitle">Test all REST API endpoints interactively</p>
+
+        <div class="api-config">
+            <label>API Base URL:</label>
+            <input type="text" id="apiBaseUrl" value="/api">
+            <span style="color: #7f8c8d; font-size: 12px; margin-left: 10px;">
+                ✓ Automatically configured (served from API container)
+            </span>
+        </div>
+
+        <div class="endpoints" id="endpoints"></div>
+    </div>
+
+    <script>
+        const apiBaseUrlInput = document.getElementById('apiBaseUrl');
+        const endpointsContainer = document.getElementById('endpoints');
+
+        // Store endpoint configurations globally
+        const endpointConfigs = {};
+
+        // Get current date for default values
+        const today = new Date().toISOString().split('T')[0];
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth() + 1;
+        const currentQuarter = Math.floor(new Date().getMonth() / 3) + 1;
+        const currentHalf = new Date().getMonth() < 6 ? 1 : 2;
+
+        const endpoints = [
+            {
+                category: "Single Date Endpoints",
+                items: [
+                    {
+                        method: "GET",
+                        path: "/tasks/today",
+                        description: "Get all tasks scheduled for today",
+                        params: []
+                    },
+                    {
+                        method: "GET",
+                        path: "/tasks/date/{date}",
+                        description: "Get tasks for a specific date",
+                        params: [
+                            { name: "date", type: "date", label: "Date", default: today, placeholder: "YYYY-MM-DD" }
+                        ]
+                    }
+                ]
+            },
+            {
+                category: "Week Endpoints",
+                items: [
+                    {
+                        method: "GET",
+                        path: "/tasks/week",
+                        description: "Get tasks for the current week (Sunday to Saturday)",
+                        params: []
+                    },
+                    {
+                        method: "GET",
+                        path: "/tasks/week/{date}",
+                        description: "Get tasks for the week containing the specified date",
+                        params: [
+                            { name: "date", type: "date", label: "Date", default: today, placeholder: "YYYY-MM-DD" }
+                        ]
+                    }
+                ]
+            },
+            {
+                category: "Month/Quarter/Half-Year/Year Endpoints",
+                items: [
+                    {
+                        method: "GET",
+                        path: "/tasks/month/{year}/{month}",
+                        description: "Get tasks for a specific month",
+                        params: [
+                            { name: "year", type: "number", label: "Year", default: currentYear, placeholder: "2025" },
+                            { name: "month", type: "number", label: "Month (1-12)", default: currentMonth, placeholder: "11" }
+                        ]
+                    },
+                    {
+                        method: "GET",
+                        path: "/tasks/quarter/{year}/{quarter}",
+                        description: "Get tasks for a specific quarter",
+                        params: [
+                            { name: "year", type: "number", label: "Year", default: currentYear, placeholder: "2025" },
+                            { name: "quarter", type: "number", label: "Quarter (1-4)", default: currentQuarter, placeholder: "4" }
+                        ]
+                    },
+                    {
+                        method: "GET",
+                        path: "/tasks/half-year/{year}/{half}",
+                        description: "Get tasks for a half-year period",
+                        params: [
+                            { name: "year", type: "number", label: "Year", default: currentYear, placeholder: "2025" },
+                            { name: "half", type: "number", label: "Half (1 or 2)", default: currentHalf, placeholder: "2" }
+                        ]
+                    },
+                    {
+                        method: "GET",
+                        path: "/tasks/year/{year}",
+                        description: "Get all tasks for a specific year",
+                        params: [
+                            { name: "year", type: "number", label: "Year", default: currentYear, placeholder: "2025" }
+                        ]
+                    }
+                ]
+            },
+            {
+                category: "Date Range & Department Endpoints",
+                items: [
+                    {
+                        method: "GET",
+                        path: "/tasks/range?start={start}&end={end}",
+                        description: "Get tasks for a custom date range",
+                        params: [
+                            { name: "start", type: "date", label: "Start Date", default: today, placeholder: "YYYY-MM-DD" },
+                            { name: "end", type: "date", label: "End Date", default: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString().split('T')[0], placeholder: "YYYY-MM-DD" }
+                        ],
+                        isQuery: true
+                    },
+                    {
+                        method: "GET",
+                        path: "/tasks/department/{department}",
+                        description: "Get all tasks for a specific department",
+                        params: [
+                            {
+                                name: "department",
+                                type: "select",
+                                label: "Department",
+                                default: "MEP",
+                                options: ["MEP", "HouseKeeping", "FrontOffice", "FnB", "Gardening"]
+                            }
+                        ]
+                    },
+                    {
+                        method: "GET",
+                        path: "/tasks/departments",
+                        description: "Get list of all departments",
+                        params: []
+                    }
+                ]
+            }
+        ];
+
+        function renderEndpoints() {
+            endpointsContainer.innerHTML = '';
+
+            endpoints.forEach(category => {
+                const categoryHeader = document.createElement('div');
+                categoryHeader.className = 'category-header';
+                categoryHeader.textContent = category.category;
+                endpointsContainer.appendChild(categoryHeader);
+
+                category.items.forEach((endpoint, index) => {
+                    const card = createEndpointCard(endpoint, `${category.category}-${index}`);
+                    endpointsContainer.appendChild(card);
+                });
+            });
+        }
+
+        function createEndpointCard(endpoint, id) {
+            // Store endpoint config globally so testEndpoint can access it
+            endpointConfigs[id] = endpoint;
+
+            const card = document.createElement('div');
+            card.className = 'endpoint-card';
+
+            const header = document.createElement('div');
+            header.className = 'endpoint-header';
+            header.innerHTML = `
+                <div style="display: flex; align-items: center; flex: 1;">
+                    <span class="endpoint-method">${endpoint.method}</span>
+                    <span class="endpoint-path">${endpoint.path}</span>
+                </div>
+                <span class="endpoint-description">${endpoint.description}</span>
+            `;
+
+            const body = document.createElement('div');
+            body.className = 'endpoint-body';
+            body.id = `body-${id}`;
+
+            let paramsHtml = '';
+            if (endpoint.params.length > 0) {
+                endpoint.params.forEach(param => {
+                    if (param.type === 'select') {
+                        paramsHtml += `
+                            <div class="param-group">
+                                <label>${param.label}:</label>
+                                <select id="${id}-${param.name}">
+                                    ${param.options.map(opt => `<option value="${opt}" ${opt === param.default ? 'selected' : ''}>${opt}</option>`).join('')}
+                                </select>
+                            </div>
+                        `;
+                    } else {
+                        paramsHtml += `
+                            <div class="param-group">
+                                <label>${param.label}:</label>
+                                <input type="${param.type}" id="${id}-${param.name}" value="${param.default || ''}" placeholder="${param.placeholder}">
+                            </div>
+                        `;
+                    }
+                });
+            }
+
+            body.innerHTML = `
+                ${paramsHtml}
+                <button class="test-button" onclick="testEndpoint('${id}')" id="btn-${id}">
+                    Test API
+                </button>
+                <div class="response-section" id="response-${id}">
+                    <div class="response-header">Response:</div>
+                    <div id="status-${id}"></div>
+                    <div class="response-box" id="result-${id}"></div>
+                </div>
+            `;
+
+            header.onclick = () => {
+                body.classList.toggle('active');
+            };
+
+            card.appendChild(header);
+            card.appendChild(body);
+
+            return card;
+        }
+
+        async function testEndpoint(id) {
+            // Get endpoint config from global storage
+            const endpoint = endpointConfigs[id];
+
+            const button = document.getElementById(`btn-${id}`);
+            const responseSection = document.getElementById(`response-${id}`);
+            const statusDiv = document.getElementById(`status-${id}`);
+            const resultDiv = document.getElementById(`result-${id}`);
+
+            button.disabled = true;
+            button.textContent = 'Testing...';
+            responseSection.classList.add('active');
+            resultDiv.className = 'response-box';
+            resultDiv.innerHTML = '<div class="loading">Loading...</div>';
+            statusDiv.innerHTML = '';
+
+            let url = apiBaseUrlInput.value + endpoint.path;
+
+            // Replace path parameters
+            endpoint.params.forEach(param => {
+                const value = document.getElementById(`${id}-${param.name}`).value;
+                if (endpoint.isQuery) {
+                    // For query parameters, build query string
+                    url = url.replace(`{${param.name}}`, value);
+                } else {
+                    // For path parameters
+                    url = url.replace(`{${param.name}}`, value);
+                }
+            });
+
+            try {
+                const startTime = Date.now();
+                const response = await fetch(url);
+                const endTime = Date.now();
+                const data = await response.json();
+
+                const statusClass = response.ok ? 'status-200' : 'status-error';
+                statusDiv.innerHTML = `
+                    <span class="status-badge ${statusClass}">
+                        Status: ${response.status} ${response.statusText}
+                    </span>
+                    <span class="status-badge" style="background: #6c757d; color: white; margin-left: 10px;">
+                        Time: ${endTime - startTime}ms
+                    </span>
+                `;
+
+                resultDiv.className = 'response-box ' + (response.ok ? 'success' : 'error');
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                statusDiv.innerHTML = '<span class="status-badge status-error">Error</span>';
+                resultDiv.className = 'response-box error';
+                resultDiv.textContent = `Error: ${error.message}\n\nMake sure the API server is running at ${apiBaseUrlInput.value}`;
+            }
+
+            button.disabled = false;
+            button.textContent = 'Test API';
+        }
+
+        // Initialize
+        renderEndpoints();
+    </script>
+</body>
+</html>
