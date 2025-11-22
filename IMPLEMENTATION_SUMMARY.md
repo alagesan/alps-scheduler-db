@@ -81,12 +81,18 @@ GET    /api/master/tasks/frequency/{freq}
 
 ---
 
-### 3. React PWA Application
+### 3. React PWA Application + Nginx Reverse Proxy
 
 **Location**: `pwa-app/`
 
 **Features**:
+- **Nginx Reverse Proxy** - Single entry point for all services
 - Modern, responsive Material-inspired UI
+- **Dropdown navigation menu** (☰) with links to:
+  - Home (PWA Task Viewer)
+  - Batch Control
+  - Manage Task Master
+  - Test API
 - Three navigation tabs:
   - **Today** - View today's tasks
   - **Week** - View weekly tasks
@@ -97,12 +103,22 @@ GET    /api/master/tasks/frequency/{freq}
 - Progressive Web App capabilities
 - Mobile-responsive design
 
+**Reverse Proxy Routes**:
+| URL Pattern | Routes To | Description |
+|-------------|-----------|-------------|
+| `/` | PWA App | React UI |
+| `/api/schedule/*` | API App | Schedule APIs |
+| `/api/master/*` | API App | Master CRUD APIs |
+| `/api/batch/*` | Batch App | Batch control APIs |
+| `/batch/*` | Batch App | Batch UI pages |
+| `/api-test/` | API App | API Test Page |
+
 **Key Files**:
-- `App.js` - Main React component with navigation
-- `App.css` - Modern Material-inspired styling
-- `services/api.js` - API integration
+- `App.js` - Main React component with dropdown navigation
+- `App.css` - Modern Material-inspired styling with menu styles
+- `services/api.js` - API integration (uses relative URLs for proxy)
 - `manifest.json` - PWA configuration
-- `nginx.conf` - Production web server config
+- `nginx.conf` - Reverse proxy configuration for all services
 - `Dockerfile` - Multi-stage build with nginx
 
 ---
@@ -175,11 +191,12 @@ Implemented comprehensive scheduling logic for all frequency types:
 - `alps-db-scheduler-pwa` - PWA service
 
 **Port Mappings**:
-- PWA: 3000 → 80
-- API: 8080 → 8080
-- Batch: 8081 → 8081
+- PWA: 3000 → 80 (main entry point, all traffic routed through here)
+- API: Internal only (accessed via nginx proxy)
+- Batch: Internal only (accessed via nginx proxy)
 
 **Features**:
+- **Nginx reverse proxy** for unified access through port 3000
 - DNS configuration for Google API access (8.8.8.8, 8.8.4.4)
 - Credentials mounted as read-only volume
 - Network configuration for inter-service communication
@@ -222,40 +239,49 @@ Implemented comprehensive scheduling logic for all frequency types:
 │                  Tasks-Master                        │
 │           Named Ranges: Departments, Frequencies     │
 └─────────────────────┬───────────────────────────────┘
-                      │
                       │ Google Sheets API v4
-                      │
          ┌────────────┴────────────┐
-         │                         │
          ▼                         ▼
 ┌─────────────────┐       ┌─────────────────┐
 │  Batch App      │       │   API App       │
-│  (Port 8081)    │       │  (Port 8080)    │
-│                 │       │                 │
+│  (Internal)     │       │  (Internal)     │
 │ • Cron Jobs     │       │ • Schedule APIs │
 │ • Email Sender  │       │ • Master APIs   │
 │ • 7 AM/PM IST   │       │ • CRUD Ops      │
 │ • Master CRUD UI│       │ • Named Ranges  │
-└─────────────────┘       └────────┬────────┘
-                                   │
-                                   │ HTTP
-                                   │
-                          ┌────────▼────────┐
-                          │   PWA App       │
-                          │  (Port 3000)    │
-                          │                 │
-                          │ • React UI      │
-                          │ • Today/Week/   │
-                          │   Search tabs   │
-                          │ • Dept filter   │
-                          │ • Mobile ready  │
-                          └─────────────────┘
+└────────┬────────┘       └────────┬────────┘
+         │                         │
+         └────────────┬────────────┘
+                      │
+              ┌───────▼───────┐
+              │   PWA App     │
+              │  (Port 3000)  │
+              │ • Nginx Proxy │
+              │ • React UI    │
+              │ • Dropdown    │
+              │   Navigation  │
+              │ • Unified     │
+              │   Access Point│
+              └───────────────┘
+                      │
+              All Traffic via
+              http://localhost:3000
 ```
+
+**Access URLs through Nginx Proxy:**
+- `/` → PWA (React UI with dropdown navigation)
+- `/api/schedule/*` → API App (Schedule endpoints)
+- `/api/master/*` → API App (Master CRUD endpoints)
+- `/api/batch/*` → Batch App (Batch control APIs)
+- `/batch/*` → Batch App (Control Panel & Task Master UI)
+- `/api-test/` → API App (Interactive test page)
 
 ---
 
 ## Key Features Implemented
 
+- **Nginx Reverse Proxy** - Unified access through single port (3000)
+- **Dropdown Navigation Menu** - Easy access to all features from any page
 - Automated email scheduling (7 AM & 7 PM IST)
 - Beautiful HTML email templates
 - RESTful API with Schedule and Master endpoints
@@ -268,7 +294,6 @@ Implemented comprehensive scheduling logic for all frequency types:
 - 6 frequency types (Daily to Yearly)
 - Docker containerization
 - Health checks
-- CORS support
 - Responsive mobile design
 - Comprehensive documentation
 
@@ -276,17 +301,21 @@ Implemented comprehensive scheduling logic for all frequency types:
 
 ## Testing Checklist
 
+- [ ] Open http://localhost:3000
+- [ ] Dropdown menu (☰) opens and shows all 4 navigation items
+- [ ] Navigate to all pages via dropdown menu
+- [ ] PWA Today tab shows current tasks
+- [ ] PWA Week tab shows weekly tasks
+- [ ] PWA Search tab allows date selection
+- [ ] PWA Department filter works
+- [ ] API responds at http://localhost:3000/api/schedule/today
+- [ ] Master CRUD works at http://localhost:3000/batch/master.html
+- [ ] Batch Control works at http://localhost:3000/batch/
+- [ ] API Test page works at http://localhost:3000/api-test/
 - [ ] Email sends at 7 AM IST
 - [ ] Email sends at 7 PM IST
 - [ ] Email contains today's tasks
 - [ ] Email contains weekly schedule
-- [ ] PWA loads at http://localhost:3000
-- [ ] Today tab shows current tasks
-- [ ] Week tab shows weekly tasks
-- [ ] Search tab allows date selection
-- [ ] Department filter works
-- [ ] API responds at http://localhost:8080/api/schedule/today
-- [ ] Master CRUD works at http://localhost:8081/master.html
 - [ ] Tasks sync with Google Sheets in real-time
 - [ ] Docker containers auto-restart
 - [ ] Mobile responsive design works
@@ -297,6 +326,8 @@ Implemented comprehensive scheduling logic for all frequency types:
 
 Successfully implemented a complete, production-ready task scheduling system with:
 - **3 microservices** (Batch, API, PWA)
+- **Nginx Reverse Proxy** - All access through single port (3000)
+- **Dropdown Navigation** - Consistent menu across all pages
 - **Google Sheets database** (real-time sync)
 - **Docker deployment**
 - **Automated emails** (2x daily)

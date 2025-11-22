@@ -24,39 +24,68 @@ This system provides:
          ▼                         ▼
 ┌─────────────────┐       ┌─────────────────┐
 │  Batch App      │       │   API App       │
-│  (Port 8081)    │       │  (Port 8080)    │
+│  (Internal)     │       │  (Internal)     │
 │ • Email Jobs    │       │ • Schedule APIs │
 │ • Task CRUD UI  │       │ • Master APIs   │
-└─────────────────┘       └────────┬────────┘
-                                   │
-                          ┌────────▼────────┐
-                          │   PWA App       │
-                          │  (Port 3000)    │
-                          │ • Today/Week/   │
-                          │   Search views  │
-                          └─────────────────┘
+└────────┬────────┘       └────────┬────────┘
+         │                         │
+         └────────────┬────────────┘
+                      │
+              ┌───────▼───────┐
+              │   PWA App     │
+              │  (Port 3000)  │
+              │ • Nginx Proxy │
+              │ • React UI    │
+              │ • Unified     │
+              │   Access Point│
+              └───────────────┘
 ```
+
+### Reverse Proxy Configuration
+
+All traffic is routed through the PWA app (port 3000) using Nginx reverse proxy:
+
+| URL Pattern | Routes To | Description |
+|-------------|-----------|-------------|
+| `/` | PWA App | Task Viewer (React) |
+| `/api/schedule/*` | API App | Schedule APIs |
+| `/api/master/*` | API App | Master CRUD APIs |
+| `/api/batch/*` | Batch App | Batch control APIs |
+| `/batch/*` | Batch App | Batch Control Panel & Task Master UI |
+| `/api-test/` | API App | API Test Page |
 
 ## Features
 
-### PWA Application (http://localhost:3000)
+### Unified Access (http://localhost:3000)
+
+All applications are accessible through a single entry point with a dropdown navigation menu:
+
+| Menu Item | URL | Description |
+|-----------|-----|-------------|
+| Home | http://localhost:3000 | PWA Task Viewer |
+| Batch Control | http://localhost:3000/batch/ | Email scheduling control panel |
+| Manage Task Master | http://localhost:3000/batch/master.html | Task CRUD operations |
+| Test API | http://localhost:3000/api-test/ | Interactive API testing |
+
+### PWA Application (Home)
 - Modern Material-inspired design
 - Three navigation tabs: **Today**, **Week**, **Search**
 - Department filter
 - Task count summary
 - Color-coded frequency badges
 - Mobile responsive
+- Dropdown navigation menu for accessing all features
 
-### API Application (http://localhost:8080)
+### API Application
 - **Schedule Endpoints** (`/api/schedule/*`) - Get tasks by date/week/month/etc.
 - **Master Endpoints** (`/api/master/*`) - CRUD operations on task definitions
 - Named Ranges support for controlled dropdowns
-- Interactive API test page
+- Interactive API test page at `/api-test/`
 
-### Batch Application (http://localhost:8081)
+### Batch Application
 - Scheduled emails at 7 AM and 7 PM IST
-- Manual email trigger
-- Task Master Management UI for CRUD operations
+- Manual email trigger via `/batch/`
+- Task Master Management UI at `/batch/master.html`
 - Beautiful HTML email templates
 
 ## Quick Start
@@ -105,11 +134,13 @@ This system provides:
    docker compose up --build -d
    ```
 
-6. **Access the applications**
-   - PWA: http://localhost:3000
-   - API: http://localhost:8080
-   - Batch: http://localhost:8081
-   - Task Master: http://localhost:8081/master.html
+6. **Access the application**
+   - Open http://localhost:3000
+   - Use the dropdown menu (☰) to navigate between:
+     - Home (PWA Task Viewer)
+     - Batch Control (Email scheduling)
+     - Manage Task Master (CRUD operations)
+     - Test API (Interactive API testing)
 
 ## API Reference
 
@@ -145,7 +176,7 @@ This system provides:
 ### Example: Create a New Task
 
 ```bash
-curl -X POST http://localhost:8080/api/master/tasks \
+curl -X POST http://localhost:3000/api/master/tasks \
   -H "Content-Type: application/json" \
   -d '{
     "activity": "New Task",
@@ -160,7 +191,7 @@ curl -X POST http://localhost:8080/api/master/tasks \
 ### Example: Update a Task
 
 ```bash
-curl -X PUT http://localhost:8080/api/master/tasks/5 \
+curl -X PUT http://localhost:3000/api/master/tasks/5 \
   -H "Content-Type: application/json" \
   -d '{
     "activity": "Updated Task",
@@ -206,11 +237,13 @@ If Named Ranges don't exist, the system will extract unique values from the task
 
 ## Docker Services
 
-| Service | Container Name | Port | Purpose |
-|---------|---------------|------|---------|
-| api-app | alps-db-scheduler-api | 8080 | REST API |
-| batch-app | alps-db-scheduler-batch | 8081 | Email scheduler + Task Management UI |
-| pwa-app | alps-db-scheduler-pwa | 3000 | Web interface |
+| Service | Container Name | Internal Port | Purpose |
+|---------|---------------|---------------|---------|
+| api-app | alps-db-scheduler-api | 8080 | REST API (proxied via `/api/*`) |
+| batch-app | alps-db-scheduler-batch | 8081 | Email scheduler (proxied via `/batch/*`, `/api/batch/*`) |
+| pwa-app | alps-db-scheduler-pwa | 3000 | Nginx reverse proxy + React UI (main entry point) |
+
+**Note**: All services are accessed through port 3000 via the Nginx reverse proxy in the PWA container.
 
 ## Commands
 
@@ -254,16 +287,16 @@ docker logs alps-db-scheduler-pwa
 - View logs: `docker logs alps-db-scheduler-batch`
 
 ### PWA Not Loading
-- Check API health: http://localhost:8080/api/schedule/today
-- Check browser console for CORS errors
+- Check API health: http://localhost:3000/api/schedule/today
+- Check browser console for errors
 - Clear browser cache
+- Verify nginx proxy is running: `docker logs alps-db-scheduler-pwa`
 
 ### Port Conflicts
-If ports are in use, modify `docker-compose.yml`:
+If port 3000 is in use, modify `docker-compose.yml`:
 ```yaml
 ports:
-  - "3001:80"    # Change PWA port
-  - "8082:8080"  # Change API port
+  - "3001:80"    # Change PWA port (all access goes through here)
 ```
 
 ## Project Structure
@@ -296,11 +329,12 @@ alps-scheduler-db/
 │   │               ├── index.html
 │   │               └── master.html
 │   └── Dockerfile
-├── pwa-app/                # React PWA
+├── pwa-app/                # React PWA + Nginx Reverse Proxy
 │   ├── src/
 │   │   ├── App.js
 │   │   ├── App.css
 │   │   └── services/api.js
+│   ├── nginx.conf          # Reverse proxy configuration
 │   └── Dockerfile
 ├── credentials.json        # Google Service Account (not in git)
 ├── docker-compose.yml

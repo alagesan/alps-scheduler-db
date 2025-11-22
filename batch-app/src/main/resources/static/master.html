@@ -39,19 +39,96 @@
             margin-bottom: 20px;
         }
 
-        .nav-links {
-            text-align: center;
-            margin-bottom: 20px;
+        /* Menu Navigation */
+        .menu-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
         }
 
-        .nav-links a {
+        .menu-button {
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            transition: all 0.2s ease;
+        }
+
+        .menu-button:hover {
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .menu-icon {
+            font-size: 1.5rem;
             color: #667eea;
-            text-decoration: none;
-            margin: 0 15px;
         }
 
-        .nav-links a:hover {
-            text-decoration: underline;
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 8px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            min-width: 220px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            color: #2c3e50;
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border-bottom: 1px solid #eee;
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover {
+            background: #f0f0ff;
+            color: #667eea;
+        }
+
+        .dropdown-item.active {
+            background: #f0f0ff;
+            color: #667eea;
+            border-left: 3px solid #667eea;
+        }
+
+        .dropdown-icon {
+            font-size: 1.1rem;
+        }
+
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 999;
+            display: none;
+        }
+
+        .menu-overlay.show {
+            display: block;
         }
 
         .toolbar {
@@ -307,14 +384,34 @@
     </style>
 </head>
 <body>
+    <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
+    <div class="menu-container">
+        <button class="menu-button" onclick="toggleMenu()">
+            <span class="menu-icon">☰</span>
+        </button>
+        <div class="dropdown-menu" id="dropdownMenu">
+            <a href="/" class="dropdown-item">
+                <span class="dropdown-icon">🏠</span>
+                Home
+            </a>
+            <a href="/batch/" class="dropdown-item">
+                <span class="dropdown-icon">📧</span>
+                Batch Control
+            </a>
+            <a href="/batch/master.html" class="dropdown-item active">
+                <span class="dropdown-icon">📋</span>
+                Manage Task Master
+            </a>
+            <a href="/api-test/" class="dropdown-item">
+                <span class="dropdown-icon">🔧</span>
+                Test API
+            </a>
+        </div>
+    </div>
+
     <div class="container">
         <h1>ALPS DB Based Scheduler - Task Master Management</h1>
         <p class="subtitle">Manage task definitions in the master sheet</p>
-
-        <div class="nav-links">
-            <a href="/">Batch Control Panel</a> |
-            <a href="/master.html">Task Master Management</a>
-        </div>
 
         <div id="statusMessage" class="status-message"></div>
 
@@ -435,7 +532,15 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:8080/api/master';
+        // Menu toggle function
+        function toggleMenu() {
+            const menu = document.getElementById('dropdownMenu');
+            const overlay = document.getElementById('menuOverlay');
+            menu.classList.toggle('show');
+            overlay.classList.toggle('show');
+        }
+
+        const API_BASE = '/api/master';
         let allTasks = [];
         let deleteRowNumber = null;
 

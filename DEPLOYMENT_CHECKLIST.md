@@ -9,7 +9,7 @@ Use this checklist to ensure successful deployment of the ALPS DB Based Schedule
 - [ ] Docker Compose installed
 - [ ] Sufficient disk space (min 2GB)
 - [ ] Network connectivity available
-- [ ] Ports 3000, 8080, 8081 are available
+- [ ] Port 3000 is available (all access goes through this port)
 
 ### Google Sheets Configuration
 - [ ] Google Cloud project created
@@ -65,8 +65,21 @@ alps-db-scheduler-pwa      running
 
 ## Post-Deployment Testing
 
+### Navigation Testing
+- [ ] Open http://localhost:3000
+- [ ] Click dropdown menu (☰) in top-left corner
+- [ ] Verify all 4 menu items appear:
+  - [ ] Home
+  - [ ] Batch Control
+  - [ ] Manage Task Master
+  - [ ] Test API
+- [ ] Navigate to each page via dropdown menu
+- [ ] Verify active page is highlighted in menu
+- [ ] Test menu overlay closes menu when clicked
+
 ### API Testing
-- [ ] Open http://localhost:8080 (API Test Page)
+- [ ] Navigate to **Test API** via dropdown menu
+- [ ] Or open http://localhost:3000/api-test/
 - [ ] Test Schedule Endpoints:
   - [ ] GET /api/schedule/today - returns tasks
   - [ ] GET /api/schedule/week - returns weekly tasks
@@ -76,7 +89,7 @@ alps-db-scheduler-pwa      running
   - [ ] GET /api/master/frequencies - returns frequency list
 
 ### PWA Testing
-- [ ] Open http://localhost:3000
+- [ ] Navigate to **Home** via dropdown menu
 - [ ] Verify page loads without errors
 - [ ] Check browser console (F12) - no errors
 - [ ] Test **Today** tab - today's tasks appear
@@ -86,9 +99,11 @@ alps-db-scheduler-pwa      running
 - [ ] Verify task count updates correctly
 
 ### Batch App Testing
-- [ ] Open http://localhost:8081 (Batch Control Panel)
+- [ ] Navigate to **Batch Control** via dropdown menu
+- [ ] Or open http://localhost:3000/batch/
 - [ ] Test "Send Email for Today" button
-- [ ] Open http://localhost:8081/master.html (Task Master Management)
+- [ ] Navigate to **Manage Task Master** via dropdown menu
+- [ ] Or open http://localhost:3000/batch/master.html
 - [ ] Verify tasks load from Google Sheets
 - [ ] Test Add Task - new row appears in Google Sheets
 - [ ] Test Edit Task - changes reflect in Google Sheets
@@ -135,7 +150,7 @@ Look for:
 
 ### Health Checks
 ```bash
-- [ ] curl http://localhost:8080/api/schedule/today
+- [ ] curl http://localhost:3000/api/schedule/today
 ```
 
 Should return JSON array of tasks.
@@ -175,8 +190,8 @@ Verify:
 - [ ] Check firewall settings (port 587)
 
 ### PWA Not Loading Tasks
-- [ ] Check if API is accessible: http://localhost:8080/api/schedule/today
-- [ ] Verify CORS is enabled in API
+- [ ] Check if API is accessible: http://localhost:3000/api/schedule/today
+- [ ] Check nginx proxy logs: `docker logs alps-db-scheduler-pwa`
 - [ ] Check browser console for errors
 - [ ] Clear browser cache
 - [ ] Try different browser
@@ -184,11 +199,9 @@ Verify:
 ### Port Conflicts
 ```bash
 - [ ] lsof -i :3000  # Check what's using port 3000
-- [ ] lsof -i :8080  # Check what's using port 8080
-- [ ] lsof -i :8081  # Check what's using port 8081
 ```
 
-Solution: Stop conflicting services or change ports in docker-compose.yml
+Solution: Stop conflicting services or change port 3000 in docker-compose.yml
 
 ---
 
@@ -199,7 +212,7 @@ Solution: Stop conflicting services or change ports in docker-compose.yml
 - [ ] `credentials.json` not committed to git
 - [ ] Email credentials are secure
 - [ ] Google Sheet has restricted access
-- [ ] CORS configured correctly
+- [ ] Nginx proxy configured correctly
 - [ ] No sensitive data in logs
 
 ### Backup
@@ -263,10 +276,14 @@ Note: Data is stored in Google Sheets, so no data backup/restore needed.
 
 System is successfully deployed when:
 - All 3 containers running
-- PWA accessible at http://localhost:3000
-- API responding at http://localhost:8080
-- Batch Control Panel at http://localhost:8081
-- Task Master Management at http://localhost:8081/master.html
+- All access through http://localhost:3000
+- Dropdown navigation menu (☰) working on all pages
+- Navigation between all 4 pages works:
+  - Home (PWA) at `/`
+  - Batch Control at `/batch/`
+  - Manage Task Master at `/batch/master.html`
+  - Test API at `/api-test/`
+- API responding at http://localhost:3000/api/schedule/today
 - Emails sending at 7 AM and 7 PM IST
 - Google Sheets sync working (real-time CRUD)
 - No errors in logs

@@ -73,13 +73,16 @@ Wait for all containers to start (check with `docker ps`).
 
 ### Step 4: Access the Application
 
-Open your browser:
+Open your browser at **http://localhost:3000**
 
-| Application | URL | Purpose |
-|-------------|-----|---------|
-| **PWA App** | http://localhost:3000 | End-user task viewer |
-| **API App** | http://localhost:8080 | REST API + Test page |
-| **Batch App** | http://localhost:8081 | Email scheduling + Task Master management |
+Use the dropdown menu (☰) in the top-left corner to navigate:
+
+| Menu Item | Description |
+|-----------|-------------|
+| **Home** | PWA Task Viewer (Today/Week/Search) |
+| **Batch Control** | Manual email trigger |
+| **Manage Task Master** | Add/Edit/Delete tasks |
+| **Test API** | Interactive API testing |
 
 ---
 
@@ -87,8 +90,8 @@ Open your browser:
 
 The system is now:
 - Sending emails at 7 AM and 7 PM IST
-- Serving the PWA at http://localhost:3000
-- Providing REST API at http://localhost:8080
+- Serving all features at http://localhost:3000
+- Providing REST API via reverse proxy
 - Reading task data from Google Sheets in real-time
 
 ---
@@ -97,26 +100,28 @@ The system is now:
 
 ### Test API
 ```bash
-curl http://localhost:8080/api/schedule/today
+curl http://localhost:3000/api/schedule/today
 ```
 
 ### Test Master Data
 ```bash
-curl http://localhost:8080/api/master/tasks
+curl http://localhost:3000/api/master/tasks
 ```
 
 ### Manually Send Email
-1. Open http://localhost:8081
-2. Click "Send Email for Today"
+1. Open http://localhost:3000
+2. Click menu (☰) → **Batch Control**
+3. Click "Send Email for Today"
 
 ---
 
 ## Managing Tasks
 
 ### View/Edit Tasks
-1. Open http://localhost:8081/master.html
-2. View all tasks from Google Sheets
-3. Add, Edit, or Delete tasks directly
+1. Open http://localhost:3000
+2. Click menu (☰) → **Manage Task Master**
+3. View all tasks from Google Sheets
+4. Add, Edit, or Delete tasks directly
 
 ### Named Ranges (Optional)
 For controlled dropdown values, create Named Ranges in Google Sheets:
@@ -146,11 +151,12 @@ docker compose down
 - Check logs: `docker logs alps-db-scheduler-batch`
 
 **PWA not showing tasks?**
-- Check if API is running: http://localhost:8080/api/schedule/today
+- Check if API is running: http://localhost:3000/api/schedule/today
 - Open browser console (F12) to see errors
+- Check nginx logs: `docker logs alps-db-scheduler-pwa`
 
 **Port already in use?**
-- Edit `docker-compose.yml` and change port numbers (3000, 8080, 8081)
+- Edit `docker-compose.yml` and change port 3000 (all access goes through here)
 
 ---
 

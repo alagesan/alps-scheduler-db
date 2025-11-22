@@ -11,6 +11,7 @@ function App() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [departments, setDepartments] = useState([]);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     fetchDepartments();
@@ -182,9 +183,39 @@ function App() {
   return (
     <div className="App">
       <header className="app-header">
-        <h1>ALPS Residency</h1>
-        <p className="subtitle">DB Based Task Scheduler</p>
+        <div className="header-content">
+          <div className="menu-container">
+            <button className="menu-button" onClick={() => setMenuOpen(!menuOpen)}>
+              <span className="menu-icon">☰</span>
+            </button>
+            {menuOpen && (
+              <div className="dropdown-menu">
+                <a href="/" className="dropdown-item active">
+                  <span className="dropdown-icon">🏠</span>
+                  Home
+                </a>
+                <a href="/batch/" className="dropdown-item">
+                  <span className="dropdown-icon">📧</span>
+                  Batch Control
+                </a>
+                <a href="/batch/master.html" className="dropdown-item">
+                  <span className="dropdown-icon">📋</span>
+                  Manage Task Master
+                </a>
+                <a href="/api-test/" className="dropdown-item">
+                  <span className="dropdown-icon">🔧</span>
+                  Test API
+                </a>
+              </div>
+            )}
+          </div>
+          <div className="header-title">
+            <h1>ALPS Residency</h1>
+            <p className="subtitle">DB Based Task Scheduler</p>
+          </div>
+        </div>
       </header>
+      {menuOpen && <div className="menu-overlay" onClick={() => setMenuOpen(false)}></div>}
 
       <nav className="nav-tabs">
         <button
