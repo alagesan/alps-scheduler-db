@@ -65,21 +65,35 @@ alps-db-scheduler-pwa      running
 
 ## Post-Deployment Testing
 
-### Navigation Testing
+### Authentication Testing
 - [ ] Open http://localhost:3000
+- [ ] Verify Google Sign-In button appears
+- [ ] Sign in with a Google account in Users sheet (Enabled status)
+- [ ] Verify redirect to home page after login
+- [ ] Verify user email displayed in header
+- [ ] Test logout functionality
+- [ ] Test login with disabled user (should fail)
+- [ ] Test login with non-existent user (should fail)
+
+### Navigation Testing (as Admin)
 - [ ] Click dropdown menu (☰) in top-left corner
-- [ ] Verify all 4 menu items appear:
-  - [ ] Home
-  - [ ] Batch Control
-  - [ ] Manage Task Master
-  - [ ] Test API
+- [ ] Verify all 5 menu items appear for Admin:
+  - [ ] Home (`/`)
+  - [ ] Batch Control (`/batch`)
+  - [ ] Manage Task Master (`/master`)
+  - [ ] Manage Users (`/users`)
+  - [ ] Test API (`/api-test`)
 - [ ] Navigate to each page via dropdown menu
 - [ ] Verify active page is highlighted in menu
 - [ ] Test menu overlay closes menu when clicked
 
+### Role-Based Access Testing
+- [ ] Login as Staff user
+- [ ] Verify only Home menu item visible
+- [ ] Verify admin routes not accessible directly via URL
+
 ### API Testing
-- [ ] Navigate to **Test API** via dropdown menu
-- [ ] Or open http://localhost:3000/api-test/
+- [ ] Navigate to **Test API** via dropdown menu (`/api-test`)
 - [ ] Test Schedule Endpoints:
   - [ ] GET /api/schedule/today - returns tasks
   - [ ] GET /api/schedule/week - returns weekly tasks
@@ -87,6 +101,11 @@ alps-db-scheduler-pwa      running
   - [ ] GET /api/master/tasks - returns all tasks from Google Sheets
   - [ ] GET /api/master/departments - returns department list
   - [ ] GET /api/master/frequencies - returns frequency list
+- [ ] Test User Endpoints:
+  - [ ] GET /api/users - returns all users
+  - [ ] GET /api/users/roles - returns role list
+  - [ ] GET /api/users/statuses - returns status list
+- [ ] Verify JWT token is automatically included in requests
 
 ### PWA Testing
 - [ ] Navigate to **Home** via dropdown menu
@@ -98,16 +117,33 @@ alps-db-scheduler-pwa      running
 - [ ] Test department filter - tasks filter correctly
 - [ ] Verify task count updates correctly
 
-### Batch App Testing
-- [ ] Navigate to **Batch Control** via dropdown menu
-- [ ] Or open http://localhost:3000/batch/
+### Batch Control Testing
+- [ ] Navigate to **Batch Control** via dropdown menu (`/batch`)
 - [ ] Test "Send Email for Today" button
-- [ ] Navigate to **Manage Task Master** via dropdown menu
-- [ ] Or open http://localhost:3000/batch/master.html
+- [ ] Test "Send Email for Specific Date" with date picker
+- [ ] Verify response displays in result card
+
+### Task Master Testing
+- [ ] Navigate to **Manage Task Master** via dropdown menu (`/master`)
 - [ ] Verify tasks load from Google Sheets
+- [ ] Test department filter - tasks filter correctly
+- [ ] Test frequency filter - tasks filter correctly
+- [ ] Test search - finds tasks by activity or comments
+- [ ] Verify stats bar shows correct counts
 - [ ] Test Add Task - new row appears in Google Sheets
 - [ ] Test Edit Task - changes reflect in Google Sheets
 - [ ] Test Delete Task - row removed from Google Sheets
+
+### User Management Testing
+- [ ] Navigate to **Manage Users** via dropdown menu (`/users`)
+- [ ] Verify users load from Google Sheets
+- [ ] Test status filter (Enabled/Disabled)
+- [ ] Test role filter (Admin/Staff)
+- [ ] Test search by email
+- [ ] Verify stats bar shows correct counts
+- [ ] Test Add User - new row appears in Google Sheets
+- [ ] Test Edit User - changes reflect in Google Sheets
+- [ ] Test Delete User - row removed from Google Sheets
 
 ### Email Testing
 - [ ] Wait for 7:00 AM IST or 7:00 PM IST (or trigger manually)
@@ -118,12 +154,14 @@ alps-db-scheduler-pwa      running
 - [ ] Check formatting is correct
 
 ### Google Sheets Sync Testing
-- [ ] Add a task via http://localhost:8081/master.html
+- [ ] Add a task via Manage Task Master page
 - [ ] Verify it appears in Google Sheet
 - [ ] Edit a task in Google Sheet directly
-- [ ] Refresh PWA - verify change appears
+- [ ] Refresh page - verify change appears
 - [ ] Delete a task via UI
 - [ ] Verify row removed from Google Sheet
+- [ ] Add a user via Manage Users page
+- [ ] Verify it appears in Google Sheet Users tab
 
 ### Mobile Responsive Testing
 - [ ] Open PWA on mobile device or browser dev tools
@@ -214,6 +252,10 @@ Solution: Stop conflicting services or change port 3000 in docker-compose.yml
 - [ ] Google Sheet has restricted access
 - [ ] Nginx proxy configured correctly
 - [ ] No sensitive data in logs
+- [ ] JWT secret is strong and secure
+- [ ] Google OAuth Client ID configured correctly
+- [ ] Only authorized users in Users sheet can login
+- [ ] Role-based access control working (Admin/Staff)
 
 ### Backup
 - [ ] Google Sheet has version history enabled
@@ -277,17 +319,21 @@ Note: Data is stored in Google Sheets, so no data backup/restore needed.
 System is successfully deployed when:
 - All 3 containers running
 - All access through http://localhost:3000
+- Google OAuth login working
+- JWT authentication working on all API calls
+- Role-based access control working (Admin sees all pages, Staff sees Home only)
 - Dropdown navigation menu (☰) working on all pages
-- Navigation between all 4 pages works:
-  - Home (PWA) at `/`
-  - Batch Control at `/batch/`
-  - Manage Task Master at `/batch/master.html`
-  - Test API at `/api-test/`
-- API responding at http://localhost:3000/api/schedule/today
+- Navigation between all 5 pages works (Admin):
+  - Home at `/`
+  - Batch Control at `/batch`
+  - Manage Task Master at `/master` (with filters & search)
+  - Manage Users at `/users` (with filters & search)
+  - Test API at `/api-test`
+- API responding with JWT at http://localhost:3000/api/schedule/today
 - Emails sending at 7 AM and 7 PM IST
-- Google Sheets sync working (real-time CRUD)
+- Google Sheets sync working (real-time CRUD for tasks and users)
 - No errors in logs
-- Team can access and use system
+- Team can access and use system with appropriate roles
 
 ---
 

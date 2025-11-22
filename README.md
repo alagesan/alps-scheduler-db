@@ -29,8 +29,8 @@ This system provides:
 │  Batch App      │       │   API App       │
 │  (Internal)     │       │  (Internal)     │
 │ • Email Jobs    │       │ • Schedule APIs │
-│ • Task CRUD UI  │       │ • Master APIs   │
-│ • User Mgmt UI  │       │ • User APIs     │
+│ • Batch APIs    │       │ • Master APIs   │
+│                 │       │ • User APIs     │
 │                 │       │ • Auth APIs     │
 │                 │       │ • JWT Security  │
 └────────┬────────┘       └────────┬────────┘
@@ -41,7 +41,8 @@ This system provides:
               │   PWA App     │
               │  (Port 3000)  │
               │ • Nginx Proxy │
-              │ • React UI    │
+              │ • React SPA   │
+              │ • All Admin UI│
               │ • Google OAuth│
               │ • Role-based  │
               │   Access      │
@@ -54,28 +55,28 @@ All traffic is routed through the PWA app (port 3000) using Nginx reverse proxy:
 
 | URL Pattern | Routes To | Description |
 |-------------|-----------|-------------|
-| `/` | PWA App | Task Viewer (React) |
+| `/` | PWA App | React SPA (all UI pages) |
 | `/api/auth/*` | API App | Authentication APIs |
 | `/api/schedule/*` | API App | Schedule APIs |
 | `/api/master/*` | API App | Master CRUD APIs |
 | `/api/users/*` | API App | User Management APIs |
 | `/api/batch/*` | Batch App | Batch control APIs |
-| `/batch/*` | Batch App | Batch Control Panel, Task Master & User Mgmt UI |
-| `/api-test/` | API App | API Test Page |
+
+All admin UI pages (Task Master, Users, Batch Control, API Test) are now part of the React SPA and use client-side routing.
 
 ## Features
 
-### Unified Access (http://localhost:3000)
+### Unified React SPA (http://localhost:3000)
 
-All applications are accessible through a single entry point with a dropdown navigation menu:
+All pages are part of a single React application with client-side routing:
 
 | Menu Item | URL | Access | Description |
 |-----------|-----|--------|-------------|
-| Home | http://localhost:3000 | All Users | PWA Task Viewer |
-| Batch Control | http://localhost:3000/batch/ | Admin Only | Email scheduling control panel |
-| Manage Task Master | http://localhost:3000/batch/master.html | Admin Only | Task CRUD operations |
-| Manage Users | http://localhost:3000/batch/users.html | Admin Only | User management |
-| Test API | http://localhost:3000/api-test/ | Admin Only | Interactive API testing |
+| Home | http://localhost:3000/ | All Users | Task Viewer with Today/Week/Search tabs |
+| Batch Control | http://localhost:3000/batch | Admin Only | Email scheduling control panel |
+| Manage Task Master | http://localhost:3000/master | Admin Only | Task CRUD with filters & search |
+| Manage Users | http://localhost:3000/users | Admin Only | User management with filters & search |
+| Test API | http://localhost:3000/api-test | Admin Only | Interactive API testing
 
 ### Authentication & Authorization
 - **Google OAuth 2.0** - Sign in with Google account
@@ -84,30 +85,55 @@ All applications are accessible through a single entry point with a dropdown nav
 - **User Management** - Add, edit, enable/disable users via Google Sheets
 - **Session Management** - Automatic redirect to login on token expiry
 
-### PWA Application (Home)
+### Home Page (Task Viewer)
 - **Google Sign-In** - Authenticate with your Google account
 - Modern Material-inspired design
 - Three navigation tabs: **Today**, **Week**, **Search**
-- Department filter
+- Department filter dropdown
 - Task count summary
 - Color-coded frequency badges
 - Mobile responsive
 - **Role-based navigation** - Admin sees all menu items, Staff sees only Home
 
-### API Application
+### Task Master Management (`/master`)
+- Full CRUD operations for task definitions
+- **Filter by Department** - Dropdown with all departments
+- **Filter by Frequency** - Dropdown with all frequencies
+- **Search** - Search by activity name or comments
+- **Stats Bar** - Shows total tasks, departments count, and filtered count
+- Modal forms for add/edit operations
+
+### User Management (`/users`)
+- Full CRUD operations for user accounts
+- **Filter by Status** - Enabled/Disabled dropdown
+- **Filter by Role** - Admin/Staff dropdown
+- **Search** - Search by email address
+- **Stats Bar** - Shows total users, enabled count, admin count, and filtered count
+- Modal forms for add/edit operations
+
+### Batch Control (`/batch`)
+- View batch job status
+- Send email for today's tasks
+- Send email for specific date with custom schedule time
+- Response display for API calls
+
+### API Test Page (`/api-test`)
+- Interactive testing for all API endpoints
+- Organized by category: Schedule, Master, User endpoints
+- Expandable endpoint cards with parameter inputs
+- Response time display and formatted JSON output
+
+### API Application (Backend)
 - **Auth Endpoints** (`/api/auth/*`) - Google OAuth token verification, JWT issuance
 - **Schedule Endpoints** (`/api/schedule/*`) - Get tasks by date/week/month/etc.
 - **Master Endpoints** (`/api/master/*`) - CRUD operations on task definitions
 - **User Endpoints** (`/api/users/*`) - User management (Admin only)
 - Named Ranges support for controlled dropdowns
 - **Spring Security** with JWT authentication
-- Interactive API test page at `/api-test/`
 
-### Batch Application
+### Batch Application (Backend)
 - Scheduled emails at 7 AM and 7 PM IST
-- Manual email trigger via `/batch/`
-- Task Master Management UI at `/batch/master.html`
-- **User Management UI** at `/batch/users.html`
+- Manual email trigger via API
 - Beautiful HTML email templates
 
 ## Quick Start
@@ -182,12 +208,12 @@ All applications are accessible through a single entry point with a dropdown nav
 9. **Access the application**
    - Open http://localhost:3000
    - Sign in with your Google account (must be in Users sheet with Enabled status)
-   - Use the dropdown menu (☰) to navigate between:
-     - Home (PWA Task Viewer) - All users
-     - Batch Control (Email scheduling) - Admin only
-     - Manage Task Master (CRUD operations) - Admin only
-     - Manage Users (User management) - Admin only
-     - Test API (Interactive API testing) - Admin only
+   - Use the dropdown menu (☰) to navigate between pages:
+     - **Home** (`/`) - Task viewer with Today/Week/Search tabs
+     - **Batch Control** (`/batch`) - Email scheduling (Admin only)
+     - **Manage Task Master** (`/master`) - Task CRUD with filters (Admin only)
+     - **Manage Users** (`/users`) - User management with filters (Admin only)
+     - **Test API** (`/api-test`) - Interactive API testing (Admin only)
 
 ## API Reference
 
@@ -460,24 +486,28 @@ alps-scheduler-db/
 │   │       │   │   └── GoogleSheetsService.java
 │   │       │   └── controller/BatchController.java
 │   │       └── resources/
-│   │           ├── templates/daily-schedule-email.html
-│   │           └── static/
-│   │               ├── index.html       # Batch control panel
-│   │               ├── master.html      # Task master CRUD
-│   │               └── users.html       # User management CRUD
+│   │           └── templates/daily-schedule-email.html
 │   └── Dockerfile
-├── pwa-app/                # React PWA + Nginx Reverse Proxy
+├── pwa-app/                # React SPA + Nginx Reverse Proxy
 │   ├── src/
-│   │   ├── App.js
+│   │   ├── App.js              # Main app with React Router
 │   │   ├── App.css
-│   │   ├── index.js            # GoogleOAuthProvider setup
-│   │   ├── services/api.js
+│   │   ├── index.js            # BrowserRouter + GoogleOAuthProvider
+│   │   ├── services/
+│   │   │   └── api.js          # Axios with JWT interceptors
 │   │   ├── context/
 │   │   │   └── AuthContext.js  # Auth state management
-│   │   └── components/
-│   │       ├── Login.js        # Google Sign-In component
-│   │       └── Login.css
-│   ├── nginx.conf          # Reverse proxy configuration
+│   │   ├── components/
+│   │   │   ├── Login.js        # Google Sign-In component
+│   │   │   └── Login.css
+│   │   └── pages/              # All application pages
+│   │       ├── Home.js         # Task viewer (Today/Week/Search)
+│   │       ├── TaskMaster.js   # Task CRUD with filters
+│   │       ├── Users.js        # User management with filters
+│   │       ├── BatchControl.js # Email batch control
+│   │       ├── ApiTest.js      # Interactive API testing
+│   │       └── AdminPages.css  # Shared admin styles
+│   ├── nginx.conf          # Reverse proxy + SPA routing
 │   └── Dockerfile
 ├── credentials.json        # Google Service Account (not in git)
 ├── docker-compose.yml

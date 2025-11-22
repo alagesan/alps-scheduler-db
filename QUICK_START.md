@@ -75,14 +75,17 @@ Wait for all containers to start (check with `docker ps`).
 
 Open your browser at **http://localhost:3000**
 
+Sign in with your Google account (must be in Users sheet with Enabled status).
+
 Use the dropdown menu (☰) in the top-left corner to navigate:
 
-| Menu Item | Description |
-|-----------|-------------|
-| **Home** | PWA Task Viewer (Today/Week/Search) |
-| **Batch Control** | Manual email trigger |
-| **Manage Task Master** | Add/Edit/Delete tasks |
-| **Test API** | Interactive API testing |
+| Menu Item | URL | Access | Description |
+|-----------|-----|--------|-------------|
+| **Home** | `/` | All Users | Task Viewer (Today/Week/Search) |
+| **Batch Control** | `/batch` | Admin Only | Manual email trigger |
+| **Manage Task Master** | `/master` | Admin Only | Add/Edit/Delete tasks with filters |
+| **Manage Users** | `/users` | Admin Only | User management with filters |
+| **Test API** | `/api-test` | Admin Only | Interactive API testing |
 
 ---
 
@@ -98,20 +101,17 @@ The system is now:
 
 ## Quick Testing
 
-### Test API
+### Test API (requires JWT token)
 ```bash
-curl http://localhost:3000/api/schedule/today
-```
-
-### Test Master Data
-```bash
-curl http://localhost:3000/api/master/tasks
+# First login via UI to get JWT, then:
+curl -H "Authorization: Bearer <your-jwt-token>" http://localhost:3000/api/schedule/today
 ```
 
 ### Manually Send Email
 1. Open http://localhost:3000
-2. Click menu (☰) → **Batch Control**
-3. Click "Send Email for Today"
+2. Sign in with Google (Admin account)
+3. Click menu (☰) → **Batch Control**
+4. Click "Send Email for Today"
 
 ---
 
@@ -119,14 +119,24 @@ curl http://localhost:3000/api/master/tasks
 
 ### View/Edit Tasks
 1. Open http://localhost:3000
-2. Click menu (☰) → **Manage Task Master**
-3. View all tasks from Google Sheets
-4. Add, Edit, or Delete tasks directly
+2. Sign in with Google (Admin account)
+3. Click menu (☰) → **Manage Task Master**
+4. Use filters to narrow down tasks by department or frequency
+5. Use search to find tasks by name or comments
+6. Add, Edit, or Delete tasks directly
+
+### Managing Users
+1. Click menu (☰) → **Manage Users**
+2. Filter by status (Enabled/Disabled) or role (Admin/Staff)
+3. Search by email address
+4. Add, Edit, or Delete users
 
 ### Named Ranges (Optional)
 For controlled dropdown values, create Named Ranges in Google Sheets:
 - `Departments` - List of valid departments
 - `Frequencies` - List of valid frequencies (Daily, Weekly, Monthly, etc.)
+- `Roles` - List of valid roles (Admin, Staff)
+- `UserStatuses` - List of valid statuses (Enabled, Disabled)
 
 ---
 
