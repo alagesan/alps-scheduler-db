@@ -9,6 +9,8 @@ This system provides:
 - **REST API** for retrieving scheduled tasks and managing task definitions
 - **Progressive Web App (PWA)** for viewing tasks on any device
 - **Task Master Management UI** for CRUD operations on task definitions
+- **User Management** with role-based access control (Admin/Staff)
+- **Google OAuth Authentication** with JWT-based API security
 - **Google Sheets integration** for real-time data synchronization
 
 ## Architecture
@@ -16,8 +18,9 @@ This system provides:
 ```
 ┌─────────────────────────────────────────────────────┐
 │              Google Sheets (Database)                │
-│                  Tasks-Master                        │
-│           Named Ranges: Departments, Frequencies     │
+│         Tasks-Master  |  Users                       │
+│   Named Ranges: Departments, Frequencies, Roles,     │
+│                 UserStatuses                         │
 └─────────────────────┬───────────────────────────────┘
                       │ Google Sheets API v4
          ┌────────────┴────────────┐
@@ -27,6 +30,9 @@ This system provides:
 │  (Internal)     │       │  (Internal)     │
 │ • Email Jobs    │       │ • Schedule APIs │
 │ • Task CRUD UI  │       │ • Master APIs   │
+│ • User Mgmt UI  │       │ • User APIs     │
+│                 │       │ • Auth APIs     │
+│                 │       │ • JWT Security  │
 └────────┬────────┘       └────────┬────────┘
          │                         │
          └────────────┬────────────┘
@@ -36,8 +42,9 @@ This system provides:
               │  (Port 3000)  │
               │ • Nginx Proxy │
               │ • React UI    │
-              │ • Unified     │
-              │   Access Point│
+              │ • Google OAuth│
+              │ • Role-based  │
+              │   Access      │
               └───────────────┘
 ```
 
@@ -48,10 +55,12 @@ All traffic is routed through the PWA app (port 3000) using Nginx reverse proxy:
 | URL Pattern | Routes To | Description |
 |-------------|-----------|-------------|
 | `/` | PWA App | Task Viewer (React) |
+| `/api/auth/*` | API App | Authentication APIs |
 | `/api/schedule/*` | API App | Schedule APIs |
 | `/api/master/*` | API App | Master CRUD APIs |
+| `/api/users/*` | API App | User Management APIs |
 | `/api/batch/*` | Batch App | Batch control APIs |
-| `/batch/*` | Batch App | Batch Control Panel & Task Master UI |
+| `/batch/*` | Batch App | Batch Control Panel, Task Master & User Mgmt UI |
 | `/api-test/` | API App | API Test Page |
 
 ## Features
@@ -60,32 +69,45 @@ All traffic is routed through the PWA app (port 3000) using Nginx reverse proxy:
 
 All applications are accessible through a single entry point with a dropdown navigation menu:
 
-| Menu Item | URL | Description |
-|-----------|-----|-------------|
-| Home | http://localhost:3000 | PWA Task Viewer |
-| Batch Control | http://localhost:3000/batch/ | Email scheduling control panel |
-| Manage Task Master | http://localhost:3000/batch/master.html | Task CRUD operations |
-| Test API | http://localhost:3000/api-test/ | Interactive API testing |
+| Menu Item | URL | Access | Description |
+|-----------|-----|--------|-------------|
+| Home | http://localhost:3000 | All Users | PWA Task Viewer |
+| Batch Control | http://localhost:3000/batch/ | Admin Only | Email scheduling control panel |
+| Manage Task Master | http://localhost:3000/batch/master.html | Admin Only | Task CRUD operations |
+| Manage Users | http://localhost:3000/batch/users.html | Admin Only | User management |
+| Test API | http://localhost:3000/api-test/ | Admin Only | Interactive API testing |
+
+### Authentication & Authorization
+- **Google OAuth 2.0** - Sign in with Google account
+- **JWT-based API Security** - All API calls authenticated with JWT tokens
+- **Role-based Access Control** - Admin and Staff roles
+- **User Management** - Add, edit, enable/disable users via Google Sheets
+- **Session Management** - Automatic redirect to login on token expiry
 
 ### PWA Application (Home)
+- **Google Sign-In** - Authenticate with your Google account
 - Modern Material-inspired design
 - Three navigation tabs: **Today**, **Week**, **Search**
 - Department filter
 - Task count summary
 - Color-coded frequency badges
 - Mobile responsive
-- Dropdown navigation menu for accessing all features
+- **Role-based navigation** - Admin sees all menu items, Staff sees only Home
 
 ### API Application
+- **Auth Endpoints** (`/api/auth/*`) - Google OAuth token verification, JWT issuance
 - **Schedule Endpoints** (`/api/schedule/*`) - Get tasks by date/week/month/etc.
 - **Master Endpoints** (`/api/master/*`) - CRUD operations on task definitions
+- **User Endpoints** (`/api/users/*`) - User management (Admin only)
 - Named Ranges support for controlled dropdowns
+- **Spring Security** with JWT authentication
 - Interactive API test page at `/api-test/`
 
 ### Batch Application
 - Scheduled emails at 7 AM and 7 PM IST
 - Manual email trigger via `/batch/`
 - Task Master Management UI at `/batch/master.html`
+- **User Management UI** at `/batch/users.html`
 - Beautiful HTML email templates
 
 ## Quick Start
@@ -93,6 +115,7 @@ All applications are accessible through a single entry point with a dropdown nav
 ### Prerequisites
 - Docker Desktop
 - Google Cloud Service Account with Sheets API access
+- Google Cloud OAuth 2.0 Client ID (for user authentication)
 - Gmail account for sending emails
 
 ### Setup
@@ -104,12 +127,19 @@ All applications are accessible through a single entry point with a dropdown nav
    ```
 
 2. **Configure Google Sheets**
-   - Create a Google Sheet with `Tasks-Master` tab
+   - Create a Google Sheet with `Tasks-Master` and `Users` tabs
    - Enable Google Sheets API in Google Cloud Console
    - Create Service Account and download `credentials.json`
    - Share the Google Sheet with the service account email
 
-3. **Configure environment**
+3. **Configure Google OAuth** (for user authentication)
+   - Go to Google Cloud Console → APIs & Services → Credentials
+   - Create OAuth 2.0 Client ID (Web application)
+   - Add authorized JavaScript origins: `http://localhost:3000`
+   - Add authorized redirect URIs: `http://localhost:3000`
+   - Copy the Client ID for `.env` configuration
+
+4. **Configure environment**
    ```bash
    cp .env.example .env
    # Edit .env with your settings
@@ -117,32 +147,75 @@ All applications are accessible through a single entry point with a dropdown nav
 
    Required settings in `.env`:
    ```
+   # Google Sheets
    GOOGLE_SHEETS_SPREADSHEET_ID=your-spreadsheet-id
    GOOGLE_SHEETS_SHEET_NAME=Tasks-Master
+
+   # Email
    MAIL_USERNAME=your-email@gmail.com
    MAIL_PASSWORD=your-app-password
    MAIL_RECIPIENT=recipient@example.com
+
+   # Google OAuth (for user authentication)
+   GOOGLE_OAUTH_CLIENT_ID=your-oauth-client-id.apps.googleusercontent.com
+
+   # JWT Configuration
+   JWT_SECRET=YourSecureRandomStringAtLeast256BitsLong
+   JWT_EXPIRATION=86400000
    ```
 
-4. **Place credentials**
+6. **Place credentials**
    ```bash
    cp ~/Downloads/credentials.json ./credentials.json
    ```
 
-5. **Build and run**
+7. **Add initial admin user**
+   - In Google Sheets, go to the `Users` tab
+   - Add a row with columns: Email, Status, Role
+   - Example: `admin@gmail.com | Enabled | Admin`
+
+8. **Build and run**
    ```bash
    docker compose up --build -d
    ```
 
-6. **Access the application**
+9. **Access the application**
    - Open http://localhost:3000
+   - Sign in with your Google account (must be in Users sheet with Enabled status)
    - Use the dropdown menu (☰) to navigate between:
-     - Home (PWA Task Viewer)
-     - Batch Control (Email scheduling)
-     - Manage Task Master (CRUD operations)
-     - Test API (Interactive API testing)
+     - Home (PWA Task Viewer) - All users
+     - Batch Control (Email scheduling) - Admin only
+     - Manage Task Master (CRUD operations) - Admin only
+     - Manage Users (User management) - Admin only
+     - Test API (Interactive API testing) - Admin only
 
 ## API Reference
+
+> **Note**: All API endpoints (except `/api/auth/*`) require JWT authentication. Include the header:
+> `Authorization: Bearer <jwt_token>`
+
+### Auth Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/google` | Verify Google ID token and get JWT |
+
+**Request body for `/api/auth/google`:**
+```json
+{
+  "credential": "google-id-token-from-oauth"
+}
+```
+
+**Response:**
+```json
+{
+  "token": "jwt-token",
+  "email": "user@gmail.com",
+  "role": "Admin",
+  "status": "Enabled"
+}
+```
 
 ### Schedule Endpoints (Task Retrieval)
 
@@ -173,11 +246,27 @@ All applications are accessible through a single entry point with a dropdown nav
 | GET | `/api/master/tasks/department/{dept}` | Tasks by department |
 | GET | `/api/master/tasks/frequency/{freq}` | Tasks by frequency |
 
+### User Endpoints (Admin Only)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/users` | All users |
+| GET | `/api/users/{rowNumber}` | Single user by row |
+| GET | `/api/users/email/{email}` | User by email |
+| GET | `/api/users/status/{status}` | Users by status |
+| GET | `/api/users/role/{role}` | Users by role |
+| GET | `/api/users/statuses` | All statuses (from Named Range) |
+| GET | `/api/users/roles` | All roles (from Named Range) |
+| POST | `/api/users` | Create new user |
+| PUT | `/api/users/{rowNumber}` | Update user |
+| DELETE | `/api/users/{rowNumber}` | Delete user |
+
 ### Example: Create a New Task
 
 ```bash
 curl -X POST http://localhost:3000/api/master/tasks \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your-jwt-token>" \
   -d '{
     "activity": "New Task",
     "department": "MEP",
@@ -193,6 +282,7 @@ curl -X POST http://localhost:3000/api/master/tasks \
 ```bash
 curl -X PUT http://localhost:3000/api/master/tasks/5 \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your-jwt-token>" \
   -d '{
     "activity": "Updated Task",
     "department": "MEP",
@@ -200,6 +290,19 @@ curl -X PUT http://localhost:3000/api/master/tasks/5 \
     "noOfTimes": 1,
     "specificDates": "",
     "comments": ""
+  }'
+```
+
+### Example: Create a New User (Admin Only)
+
+```bash
+curl -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your-jwt-token>" \
+  -d '{
+    "email": "newuser@gmail.com",
+    "status": "Enabled",
+    "role": "Staff"
   }'
 ```
 
@@ -216,13 +319,29 @@ The `Tasks-Master` sheet should have the following columns:
 | E | Specific Dates | For yearly tasks | "October 1" |
 | F | Comments | Additional notes | "Every Monday and Thursday" |
 
-### Named Ranges (Optional)
+### Users Sheet Structure
+
+The `Users` sheet should have the following columns:
+
+| Column | Field | Description | Example |
+|--------|-------|-------------|---------|
+| A | Email | User's Google email | "admin@gmail.com" |
+| B | Status | Account status | "Enabled", "Disabled" |
+| C | Role | User role | "Admin", "Staff" |
+
+### Named Ranges
 
 Create Named Ranges for controlled dropdown values:
+
+**For Tasks:**
 - `Departments` - List of valid department names
 - `Frequencies` - List of valid frequencies (Daily, Weekly, Monthly, Quarterly, Half-Yearly, Yearly)
 
-If Named Ranges don't exist, the system will extract unique values from the task data.
+**For Users:**
+- `Roles` - List of valid roles (Admin, Staff)
+- `UserStatuses` - List of valid statuses (Enabled, Disabled)
+
+If Named Ranges don't exist, the system will extract unique values from the data.
 
 ## Task Frequencies
 
@@ -268,8 +387,9 @@ docker logs alps-db-scheduler-pwa
 
 ## Technology Stack
 
-- **Backend**: Java 17, Spring Boot 3.2.0, Google Sheets API v4
-- **Frontend**: React 19, Axios, date-fns
+- **Backend**: Java 17, Spring Boot 3.2.0, Spring Security, Google Sheets API v4
+- **Authentication**: Google OAuth 2.0, JWT (jjwt library)
+- **Frontend**: React 19, @react-oauth/google, Axios, date-fns
 - **Infrastructure**: Docker, Docker Compose, Nginx
 - **Email**: Spring Mail, Thymeleaf templates
 
@@ -292,6 +412,13 @@ docker logs alps-db-scheduler-pwa
 - Clear browser cache
 - Verify nginx proxy is running: `docker logs alps-db-scheduler-pwa`
 
+### Authentication Issues
+- **"User not found"**: Add user email to Users sheet with Status=Enabled
+- **"User is disabled"**: Change user status to Enabled in Users sheet
+- **"Invalid Google token"**: Verify OAuth Client ID in `.env` matches Google Cloud Console
+- **403 Forbidden on APIs**: Check JWT token is valid and included in Authorization header
+- **Session expired**: Re-login from home page; JWT tokens expire after 24 hours (configurable)
+
 ### Port Conflicts
 If port 3000 is in use, modify `docker-compose.yml`:
 ```yaml
@@ -307,12 +434,21 @@ alps-scheduler-db/
 │   ├── src/
 │   │   └── main/java/.../
 │   │       ├── controller/
+│   │       │   ├── AuthController.java      # Google OAuth + JWT
 │   │       │   ├── ScheduleController.java
-│   │       │   └── TaskMasterController.java
+│   │       │   ├── TaskMasterController.java
+│   │       │   └── UserController.java      # User CRUD
+│   │       ├── security/
+│   │       │   ├── JwtUtil.java             # JWT generation/validation
+│   │       │   ├── JwtAuthenticationFilter.java
+│   │       │   └── SecurityConfig.java      # Spring Security config
 │   │       ├── service/
 │   │       │   ├── TaskSchedulerService.java
-│   │       │   └── GoogleSheetsService.java
-│   │       └── model/Task.java
+│   │       │   ├── GoogleSheetsService.java
+│   │       │   └── UserService.java         # User management
+│   │       └── model/
+│   │           ├── Task.java
+│   │           └── User.java
 │   └── Dockerfile
 ├── batch-app/              # Spring Boot Batch Application
 │   ├── src/
@@ -326,14 +462,21 @@ alps-scheduler-db/
 │   │       └── resources/
 │   │           ├── templates/daily-schedule-email.html
 │   │           └── static/
-│   │               ├── index.html
-│   │               └── master.html
+│   │               ├── index.html       # Batch control panel
+│   │               ├── master.html      # Task master CRUD
+│   │               └── users.html       # User management CRUD
 │   └── Dockerfile
 ├── pwa-app/                # React PWA + Nginx Reverse Proxy
 │   ├── src/
 │   │   ├── App.js
 │   │   ├── App.css
-│   │   └── services/api.js
+│   │   ├── index.js            # GoogleOAuthProvider setup
+│   │   ├── services/api.js
+│   │   ├── context/
+│   │   │   └── AuthContext.js  # Auth state management
+│   │   └── components/
+│   │       ├── Login.js        # Google Sign-In component
+│   │       └── Login.css
 │   ├── nginx.conf          # Reverse proxy configuration
 │   └── Dockerfile
 ├── credentials.json        # Google Service Account (not in git)
@@ -357,6 +500,10 @@ alps-scheduler-db/
 - **Never commit** `credentials.json` or `.env` to version control
 - These files are excluded via `.gitignore`
 - Use environment variables for sensitive configuration
+- **JWT Secret**: Use a strong, random string (at least 256 bits) for `JWT_SECRET`
+- **OAuth Client ID**: Keep your Google OAuth Client ID secure
+- **User Access**: Only users in the Users sheet with Status=Enabled can login
+- **Role-based Access**: Admin role required for user management and task master APIs
 
 ## License
 
