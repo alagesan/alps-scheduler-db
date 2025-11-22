@@ -253,6 +253,7 @@
 
         .category-schedule { background: #28a745; }
         .category-master { background: #007bff; }
+        .category-users { background: #6f42c1; }
 
         /* Menu Navigation */
         .menu-container {
@@ -366,6 +367,10 @@
                 <span class="dropdown-icon">📋</span>
                 Manage Task Master
             </a>
+            <a href="/batch/users.html" class="dropdown-item">
+                <span class="dropdown-icon">👥</span>
+                Manage Users
+            </a>
             <a href="/api-test/" class="dropdown-item active">
                 <span class="dropdown-icon">🔧</span>
                 Test API
@@ -389,6 +394,30 @@
     </div>
 
     <script>
+        // Authentication helpers
+        function getAuthHeaders() {
+            const token = localStorage.getItem('jwt_token');
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+            };
+        }
+
+        function checkAuth() {
+            const token = localStorage.getItem('jwt_token');
+            if (!token) {
+                alert('Please login first from the Home page');
+                window.location.href = '/';
+                return false;
+            }
+            return true;
+        }
+
+        // Check auth on page load
+        if (!checkAuth()) {
+            throw new Error('Not authenticated');
+        }
+
         // Menu toggle function
         function toggleMenu() {
             const menu = document.getElementById('dropdownMenu');
@@ -575,6 +604,97 @@
                         ]
                     }
                 ]
+            },
+            {
+                category: "User Endpoints - User Management (CRUD)",
+                categoryClass: "category-users",
+                items: [
+                    {
+                        method: "GET",
+                        path: "/users",
+                        description: "Get all users",
+                        params: []
+                    },
+                    {
+                        method: "GET",
+                        path: "/users/{rowNumber}",
+                        description: "Get user by row number",
+                        params: [
+                            { name: "rowNumber", type: "number", label: "Row Number", default: 2 }
+                        ]
+                    },
+                    {
+                        method: "GET",
+                        path: "/users/email/{email}",
+                        description: "Get user by email",
+                        params: [
+                            { name: "email", type: "text", label: "Email", default: "admin@example.com" }
+                        ]
+                    },
+                    {
+                        method: "GET",
+                        path: "/users/status/{status}",
+                        description: "Get users by status",
+                        params: [
+                            { name: "status", type: "select", label: "Status", default: "Enabled",
+                              options: ["Enabled", "Disabled"] }
+                        ]
+                    },
+                    {
+                        method: "GET",
+                        path: "/users/role/{role}",
+                        description: "Get users by role",
+                        params: [
+                            { name: "role", type: "select", label: "Role", default: "Admin",
+                              options: ["Admin", "Staff", "User"] }
+                        ]
+                    },
+                    {
+                        method: "GET",
+                        path: "/users/statuses",
+                        description: "Get all available statuses",
+                        params: []
+                    },
+                    {
+                        method: "GET",
+                        path: "/users/roles",
+                        description: "Get all available roles",
+                        params: []
+                    },
+                    {
+                        method: "POST",
+                        path: "/users",
+                        description: "Create new user",
+                        params: [
+                            { name: "body", type: "json", label: "Request Body", default: JSON.stringify({
+                                email: "newuser@example.com",
+                                status: "Enabled",
+                                role: "Staff"
+                            }, null, 2) }
+                        ]
+                    },
+                    {
+                        method: "PUT",
+                        path: "/users/{rowNumber}",
+                        description: "Update user",
+                        params: [
+                            { name: "rowNumber", type: "number", label: "Row Number", default: 2 },
+                            { name: "body", type: "json", label: "Request Body", default: JSON.stringify({
+                                email: "updated@example.com",
+                                status: "Enabled",
+                                role: "Admin"
+                            }, null, 2) }
+                        ]
+                    },
+                    {
+                        method: "DELETE",
+                        path: "/users/{rowNumber}",
+                        description: "Delete user",
+                        params: [
+                            { name: "rowNumber", type: "number", label: "Row Number", default: 10 }
+                        ]
+                    }
+                ]
             }
         ];
 
@@ -699,15 +819,22 @@
                 const startTime = Date.now();
                 const options = {
                     method: endpoint.method,
-                    headers: {}
+                    headers: getAuthHeaders()
                 };
 
                 if (requestBody && (endpoint.method === 'POST' || endpoint.method === 'PUT')) {
-                    options.headers['Content-Type'] = 'application/json';
                     options.body = requestBody;
                 }
 
                 const response = await fetch(url, options);
+
+                // Handle auth errors
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('jwt_token');
+                    alert('Session expired. Please login again.');
+                    window.location.href = '/';
+                    return;
+                }
                 const endTime = Date.now();
 
                 let data;

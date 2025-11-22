@@ -15,6 +15,9 @@ services:
       - GOOGLE_SHEETS_SPREADSHEET_ID=${GOOGLE_SHEETS_SPREADSHEET_ID}
       - GOOGLE_SHEETS_CREDENTIALS_PATH=/app/credentials.json
       - GOOGLE_SHEETS_SHEET_NAME=${GOOGLE_SHEETS_SHEET_NAME:-Tasks-Master}
+      - GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID}
+      - JWT_SECRET=${JWT_SECRET:-YourSuperSecretKeyForJWTTokensThatShouldBeAtLeast256BitsLong!}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
     env_file:
       - .env
     dns:
@@ -64,6 +67,8 @@ services:
     build:
       context: ./pwa-app
       dockerfile: Dockerfile
+      args:
+        - REACT_APP_GOOGLE_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID}
     container_name: alps-db-scheduler-pwa
     ports:
       - "3000:80"

@@ -312,6 +312,10 @@
                 <span class="dropdown-icon">📋</span>
                 Manage Task Master
             </a>
+            <a href="/batch/users.html" class="dropdown-item">
+                <span class="dropdown-icon">👥</span>
+                Manage Users
+            </a>
             <a href="/api-test/" class="dropdown-item">
                 <span class="dropdown-icon">🔧</span>
                 Test API
@@ -373,6 +377,30 @@
     </div>
 
     <script>
+        // Authentication helpers
+        function getAuthHeaders() {
+            const token = localStorage.getItem('jwt_token');
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+            };
+        }
+
+        function checkAuth() {
+            const token = localStorage.getItem('jwt_token');
+            if (!token) {
+                alert('Please login first from the Home page');
+                window.location.href = '/';
+                return false;
+            }
+            return true;
+        }
+
+        // Check auth on page load
+        if (!checkAuth()) {
+            throw new Error('Not authenticated');
+        }
+
         // Menu toggle function
         function toggleMenu() {
             const menu = document.getElementById('dropdownMenu');
@@ -386,7 +414,18 @@
 
         async function loadStatus() {
             try {
-                const response = await fetch('/api/batch/status');
+                const response = await fetch('/api/batch/status', {
+                    headers: getAuthHeaders()
+                });
+
+                // Handle auth errors
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('jwt_token');
+                    alert('Session expired. Please login again.');
+                    window.location.href = '/';
+                    return;
+                }
+
                 const data = await response.json();
 
                 document.getElementById('statusValue').textContent = data.status.toUpperCase();
@@ -408,8 +447,18 @@
 
             try {
                 const response = await fetch('/api/batch/send-email', {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: getAuthHeaders()
                 });
+
+                // Handle auth errors
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('jwt_token');
+                    alert('Session expired. Please login again.');
+                    window.location.href = '/';
+                    return;
+                }
+
                 const data = await response.json();
 
                 if (data.status === 'success') {
@@ -444,8 +493,18 @@
             try {
                 const url = `/api/batch/send-email/date/${date}?scheduleTime=${encodeURIComponent(scheduleTime)}`;
                 const response = await fetch(url, {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: getAuthHeaders()
                 });
+
+                // Handle auth errors
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('jwt_token');
+                    alert('Session expired. Please login again.');
+                    window.location.href = '/';
+                    return;
+                }
+
                 const data = await response.json();
 
                 if (data.status === 'success') {

@@ -1,0 +1,26 @@
+Activity,Dept,Frequency,NoOfTimes,Specific Dates,Comments
+Generator Operation,MEP,Weekly,2,,"Sunday being the first day of the week, Sun and Wed"
+Swimming Pool AM,MEP,Daily,1,,
+Swimming Pool PM,MEP,Daily,1,,
+AC Service,MEP,Quarterly,1,,
+Bike Service,FrontOffice,Half-Yearly,1,,In January and June
+Fan Cleaning,HouseKeeping,Monthly,1,,First day of every month
+Curtain Replace,HouseKeeping,Quarterly,1,,
+Windows & Furnitures,HouseKeeping,Monthly,1,,First day of every month
+Kitchen Equipments Inventory,FnB,Quarterly,1,,
+FnB Groceries Inventory,FnB,Quarterly,1,,
+HouseKeeping Inventory,HouseKeeping,Quarterly,1,,
+Linen Inventory,HouseKeeping,Quarterly,1,,
+Generator Service,MEP,Half-Yearly,1,,In January and June
+AC Operation On/Off,HouseKeeping,Daily,1,,Every Monday and Thursday
+Water tank cleaning,MEP,Half-Yearly,1,,In January and June
+Internal Common Area Cleaning,HouseKeeping,Daily,1,,"Include lobbies, yard, Public restrooms, Spool restrooms"
+Terrace Cleaning,HouseKeeping,Daily,1,,Every Wednesday
+AC AMC,MEP,Yearly,1,October 1,
+DG Set AMC,MEP,Yearly,1,December 1,
+Water tank input filter cleaning,MEP,Weekly,1,,Sunday being the first day of the week every Sunday
+Watering the garden,Gardening,Daily,1,,
+Cleaning the Shrubs,Gardening,Weekly,1,,Sunday being the first day of the week every Sunday
+Lawn Care,Gardening,Weekly,1,,Sunday being the first day of the week every Sunday
+Fertilize,Gardening,Monthly,1,,First day of every month
+Tree Care,Gardening,Quarterly,1,,

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ALPS DB Based Scheduler - Task Master Management</title>
+    <title>ALPS DB Based Scheduler - User Management</title>
     <style>
         * {
             box-sizing: border-box;
@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
             background: white;
             border-radius: 10px;
@@ -292,7 +292,7 @@
             color: #2c3e50;
         }
 
-        .form-group input, .form-group select, .form-group textarea {
+        .form-group input, .form-group select {
             width: 100%;
             padding: 10px;
             border: 2px solid #e0e0e0;
@@ -300,7 +300,7 @@
             font-size: 14px;
         }
 
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+        .form-group input:focus, .form-group select:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -343,12 +343,10 @@
             font-weight: bold;
         }
 
-        .badge-daily { background: #28a745; color: white; }
-        .badge-weekly { background: #17a2b8; color: white; }
-        .badge-monthly { background: #ffc107; color: black; }
-        .badge-quarterly { background: #fd7e14; color: white; }
-        .badge-half-yearly { background: #6f42c1; color: white; }
-        .badge-yearly { background: #dc3545; color: white; }
+        .badge-enabled { background: #28a745; color: white; }
+        .badge-disabled { background: #dc3545; color: white; }
+        .badge-admin { background: #667eea; color: white; }
+        .badge-user { background: #17a2b8; color: white; }
 
         .loading {
             text-align: center;
@@ -398,11 +396,11 @@
                 <span class="dropdown-icon">📧</span>
                 Batch Control
             </a>
-            <a href="/batch/master.html" class="dropdown-item active">
+            <a href="/batch/master.html" class="dropdown-item">
                 <span class="dropdown-icon">📋</span>
                 Manage Task Master
             </a>
-            <a href="/batch/users.html" class="dropdown-item">
+            <a href="/batch/users.html" class="dropdown-item active">
                 <span class="dropdown-icon">👥</span>
                 Manage Users
             </a>
@@ -414,35 +412,39 @@
     </div>
 
     <div class="container">
-        <h1>ALPS DB Based Scheduler - Task Master Management</h1>
-        <p class="subtitle">Manage task definitions in the master sheet</p>
+        <h1>ALPS DB Based Scheduler - User Management</h1>
+        <p class="subtitle">Manage user access and roles</p>
 
         <div id="statusMessage" class="status-message"></div>
 
         <div class="stats-bar" id="statsBar">
             <div class="stat-item">
-                <div class="stat-value" id="totalTasks">-</div>
-                <div class="stat-label">Total Tasks</div>
+                <div class="stat-value" id="totalUsers">-</div>
+                <div class="stat-label">Total Users</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value" id="totalDepts">-</div>
-                <div class="stat-label">Departments</div>
+                <div class="stat-value" id="enabledUsers">-</div>
+                <div class="stat-label">Enabled</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="adminUsers">-</div>
+                <div class="stat-label">Admins</div>
             </div>
         </div>
 
         <div class="toolbar">
             <div class="filter-group">
-                <select id="filterDepartment">
-                    <option value="">All Departments</option>
+                <select id="filterStatus">
+                    <option value="">All Statuses</option>
                 </select>
-                <select id="filterFrequency">
-                    <option value="">All Frequencies</option>
+                <select id="filterRole">
+                    <option value="">All Roles</option>
                 </select>
-                <input type="text" id="searchInput" placeholder="Search activities...">
+                <input type="text" id="searchInput" placeholder="Search by email...">
             </div>
             <div>
-                <button class="btn btn-primary" onclick="openAddModal()">+ Add New Task</button>
-                <button class="btn btn-secondary" onclick="loadTasks()">Refresh</button>
+                <button class="btn btn-primary" onclick="openAddModal()">+ Add New User</button>
+                <button class="btn btn-secondary" onclick="loadUsers()">Refresh</button>
             </div>
         </div>
 
@@ -451,69 +453,51 @@
                 <thead>
                     <tr>
                         <th>Row</th>
-                        <th>Activity</th>
-                        <th>Department</th>
-                        <th>Frequency</th>
-                        <th>Times</th>
-                        <th>Specific Dates</th>
-                        <th>Comments</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Role</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody id="tasksTableBody">
-                    <tr><td colspan="8" class="loading">Loading tasks...</td></tr>
+                <tbody id="usersTableBody">
+                    <tr><td colspan="5" class="loading">Loading users...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
     <!-- Add/Edit Modal -->
-    <div class="modal" id="taskModal">
+    <div class="modal" id="userModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="modalTitle">Add New Task</h2>
+                <h2 id="modalTitle">Add New User</h2>
                 <button class="modal-close" onclick="closeModal()">&times;</button>
             </div>
-            <form id="taskForm" onsubmit="saveTask(event)">
-                <input type="hidden" id="taskRowNumber">
+            <form id="userForm" onsubmit="saveUser(event)">
+                <input type="hidden" id="userRowNumber">
 
                 <div class="form-group">
-                    <label for="taskActivity">Activity *</label>
-                    <input type="text" id="taskActivity" required placeholder="Enter task activity">
+                    <label for="userEmail">Email *</label>
+                    <input type="email" id="userEmail" required placeholder="Enter user email">
                 </div>
 
                 <div class="form-group">
-                    <label for="taskDepartment">Department *</label>
-                    <select id="taskDepartment" required>
-                        <option value="">Select Department</option>
+                    <label for="userStatus">Status *</label>
+                    <select id="userStatus" required>
+                        <option value="">Select Status</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label for="taskFrequency">Frequency *</label>
-                    <select id="taskFrequency" required>
-                        <option value="">Select Frequency</option>
+                    <label for="userRole">Role *</label>
+                    <select id="userRole" required>
+                        <option value="">Select Role</option>
                     </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="taskNoOfTimes">Number of Times</label>
-                    <input type="number" id="taskNoOfTimes" min="1" value="1" placeholder="1">
-                </div>
-
-                <div class="form-group">
-                    <label for="taskSpecificDates">Specific Dates</label>
-                    <input type="text" id="taskSpecificDates" placeholder="e.g., October 1, March 15">
-                </div>
-
-                <div class="form-group">
-                    <label for="taskComments">Comments</label>
-                    <textarea id="taskComments" rows="3" placeholder="Additional notes..."></textarea>
                 </div>
 
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-                    <button type="submit" class="btn btn-success" id="saveButton">Save Task</button>
+                    <button type="submit" class="btn btn-success" id="saveButton">Save User</button>
                 </div>
             </form>
         </div>
@@ -526,8 +510,8 @@
                 <h2>Confirm Delete</h2>
                 <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
             </div>
-            <p style="margin-bottom: 20px;">Are you sure you want to delete this task?</p>
-            <p style="margin-bottom: 20px; font-weight: bold;" id="deleteTaskName"></p>
+            <p style="margin-bottom: 20px;">Are you sure you want to delete this user?</p>
+            <p style="margin-bottom: 20px; font-weight: bold;" id="deleteUserEmail"></p>
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
                 <button type="button" class="btn btn-danger" onclick="confirmDelete()">Delete</button>
@@ -544,8 +528,8 @@
             overlay.classList.toggle('show');
         }
 
-        const API_BASE = '/api/master';
-        let allTasks = [];
+        const API_BASE = '/api/users';
+        let allUsers = [];
         let deleteRowNumber = null;
 
         // Authentication helper
@@ -567,25 +551,25 @@
             return true;
         }
 
-        // Load tasks on page load
+        // Load users on page load
         document.addEventListener('DOMContentLoaded', () => {
             if (!checkAuth()) return;
-            loadTasks();
-            loadDepartments();
-            loadFrequencies();
+            loadUsers();
+            loadStatuses();
+            loadRoles();
         });
 
         // Filter event listeners
-        document.getElementById('filterDepartment').addEventListener('change', filterTasks);
-        document.getElementById('filterFrequency').addEventListener('change', filterTasks);
-        document.getElementById('searchInput').addEventListener('input', filterTasks);
+        document.getElementById('filterStatus').addEventListener('change', filterUsers);
+        document.getElementById('filterRole').addEventListener('change', filterUsers);
+        document.getElementById('searchInput').addEventListener('input', filterUsers);
 
-        async function loadTasks() {
-            const tbody = document.getElementById('tasksTableBody');
-            tbody.innerHTML = '<tr><td colspan="8" class="loading">Loading tasks...</td></tr>';
+        async function loadUsers() {
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = '<tr><td colspan="5" class="loading">Loading users...</td></tr>';
 
             try {
-                const response = await fetch(`${API_BASE}/tasks`, {
+                const response = await fetch(`${API_BASE}`, {
                     headers: getAuthHeaders()
                 });
                 if (response.status === 401 || response.status === 403) {
@@ -593,114 +577,52 @@
                     window.location.href = '/';
                     return;
                 }
-                allTasks = await response.json();
+                allUsers = await response.json();
 
-                document.getElementById('totalTasks').textContent = allTasks.length;
+                // Update stats
+                document.getElementById('totalUsers').textContent = allUsers.length;
+                document.getElementById('enabledUsers').textContent = allUsers.filter(u => u.status === 'Enabled').length;
+                document.getElementById('adminUsers').textContent = allUsers.filter(u => u.role === 'Admin').length;
 
-                filterTasks();
+                filterUsers();
             } catch (error) {
-                tbody.innerHTML = '<tr><td colspan="8" class="loading" style="color: red;">Error loading tasks. Make sure the API is running.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="loading" style="color: red;">Error loading users. Make sure the API is running.</td></tr>';
                 console.error('Error:', error);
             }
         }
 
-        async function loadDepartments() {
-            try {
-                const response = await fetch(`${API_BASE}/departments`, {
-                    headers: getAuthHeaders()
-                });
-                const departments = await response.json();
-
-                document.getElementById('totalDepts').textContent = departments.length;
-
-                // Populate filter dropdown
-                const filterSelect = document.getElementById('filterDepartment');
-                departments.forEach(dept => {
-                    const option = document.createElement('option');
-                    option.value = dept;
-                    option.textContent = dept;
-                    filterSelect.appendChild(option);
-                });
-
-                // Populate modal dropdown
-                const modalSelect = document.getElementById('taskDepartment');
-                departments.forEach(dept => {
-                    const option = document.createElement('option');
-                    option.value = dept;
-                    option.textContent = dept;
-                    modalSelect.appendChild(option);
-                });
-            } catch (error) {
-                console.error('Error loading departments:', error);
-            }
-        }
-
-        async function loadFrequencies() {
-            try {
-                const response = await fetch(`${API_BASE}/frequencies`, {
-                    headers: getAuthHeaders()
-                });
-                const frequencies = await response.json();
-
-                // Populate filter dropdown
-                const filterSelect = document.getElementById('filterFrequency');
-                frequencies.forEach(freq => {
-                    const option = document.createElement('option');
-                    option.value = freq;
-                    option.textContent = freq;
-                    filterSelect.appendChild(option);
-                });
-
-                // Populate modal dropdown
-                const modalSelect = document.getElementById('taskFrequency');
-                frequencies.forEach(freq => {
-                    const option = document.createElement('option');
-                    option.value = freq;
-                    option.textContent = freq;
-                    modalSelect.appendChild(option);
-                });
-            } catch (error) {
-                console.error('Error loading frequencies:', error);
-            }
-        }
-
-        function filterTasks() {
-            const deptFilter = document.getElementById('filterDepartment').value.toLowerCase();
-            const freqFilter = document.getElementById('filterFrequency').value.toLowerCase();
+        function filterUsers() {
+            const statusFilter = document.getElementById('filterStatus').value;
+            const roleFilter = document.getElementById('filterRole').value;
             const searchFilter = document.getElementById('searchInput').value.toLowerCase();
 
-            const filtered = allTasks.filter(task => {
-                const matchDept = !deptFilter || task.department.toLowerCase() === deptFilter;
-                const matchFreq = !freqFilter || task.frequency.toLowerCase() === freqFilter;
-                const matchSearch = !searchFilter ||
-                    task.activity.toLowerCase().includes(searchFilter) ||
-                    task.comments?.toLowerCase().includes(searchFilter);
-                return matchDept && matchFreq && matchSearch;
+            const filtered = allUsers.filter(user => {
+                const matchStatus = !statusFilter || user.status === statusFilter;
+                const matchRole = !roleFilter || user.role === roleFilter;
+                const matchSearch = !searchFilter || user.email.toLowerCase().includes(searchFilter);
+                return matchStatus && matchRole && matchSearch;
             });
 
-            renderTasks(filtered);
+            renderUsers(filtered);
         }
 
-        function renderTasks(tasks) {
-            const tbody = document.getElementById('tasksTableBody');
+        function renderUsers(users) {
+            const tbody = document.getElementById('usersTableBody');
 
-            if (tasks.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="loading">No tasks found</td></tr>';
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="loading">No users found</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = tasks.map(task => `
+            tbody.innerHTML = users.map(user => `
                 <tr>
-                    <td>${task.rowNumber}</td>
-                    <td>${escapeHtml(task.activity)}</td>
-                    <td>${escapeHtml(task.department)}</td>
-                    <td><span class="badge badge-${task.frequency.toLowerCase().replace('-', '-')}">${task.frequency}</span></td>
-                    <td>${task.noOfTimes || '-'}</td>
-                    <td>${escapeHtml(task.specificDates || '-')}</td>
-                    <td>${escapeHtml(task.comments || '-')}</td>
+                    <td>${user.rowNumber}</td>
+                    <td>${escapeHtml(user.email)}</td>
+                    <td><span class="badge badge-${user.status.toLowerCase()}">${user.status}</span></td>
+                    <td><span class="badge badge-${user.role.toLowerCase()}">${user.role}</span></td>
                     <td>
-                        <button class="btn btn-primary btn-sm" onclick="openEditModal(${task.rowNumber})">Edit</button>
-                        <button class="btn btn-danger btn-sm" onclick="openDeleteModal(${task.rowNumber}, '${escapeHtml(task.activity)}')">Delete</button>
+                        <button class="btn btn-primary btn-sm" onclick="openEditModal(${user.rowNumber})">Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="openDeleteModal(${user.rowNumber}, '${escapeHtml(user.email)}')">Delete</button>
                     </td>
                 </tr>
             `).join('');
@@ -714,35 +636,34 @@
         }
 
         function openAddModal() {
-            document.getElementById('modalTitle').textContent = 'Add New Task';
-            document.getElementById('taskForm').reset();
-            document.getElementById('taskRowNumber').value = '';
-            document.getElementById('taskNoOfTimes').value = '1';
-            document.getElementById('taskModal').classList.add('active');
+            document.getElementById('modalTitle').textContent = 'Add New User';
+            document.getElementById('userForm').reset();
+            document.getElementById('userRowNumber').value = '';
+            document.getElementById('userEmail').disabled = false;
+            document.getElementById('userModal').classList.add('active');
         }
 
         function openEditModal(rowNumber) {
-            const task = allTasks.find(t => t.rowNumber === rowNumber);
-            if (!task) return;
+            const user = allUsers.find(u => u.rowNumber === rowNumber);
+            if (!user) return;
 
-            document.getElementById('modalTitle').textContent = 'Edit Task';
-            document.getElementById('taskRowNumber').value = rowNumber;
-            document.getElementById('taskActivity').value = task.activity || '';
-            document.getElementById('taskDepartment').value = task.department || '';
-            document.getElementById('taskFrequency').value = task.frequency || '';
-            document.getElementById('taskNoOfTimes').value = task.noOfTimes || 1;
-            document.getElementById('taskSpecificDates').value = task.specificDates || '';
-            document.getElementById('taskComments').value = task.comments || '';
-            document.getElementById('taskModal').classList.add('active');
+            document.getElementById('modalTitle').textContent = 'Edit User';
+            document.getElementById('userRowNumber').value = rowNumber;
+            document.getElementById('userEmail').value = user.email || '';
+            document.getElementById('userEmail').disabled = true; // Can't change email on edit
+            document.getElementById('userStatus').value = user.status || 'Enabled';
+            document.getElementById('userRole').value = user.role || 'User';
+            document.getElementById('userModal').classList.add('active');
         }
 
         function closeModal() {
-            document.getElementById('taskModal').classList.remove('active');
+            document.getElementById('userModal').classList.remove('active');
+            document.getElementById('userEmail').disabled = false;
         }
 
-        function openDeleteModal(rowNumber, activityName) {
+        function openDeleteModal(rowNumber, email) {
             deleteRowNumber = rowNumber;
-            document.getElementById('deleteTaskName').textContent = activityName;
+            document.getElementById('deleteUserEmail').textContent = email;
             document.getElementById('deleteModal').classList.add('active');
         }
 
@@ -751,17 +672,14 @@
             deleteRowNumber = null;
         }
 
-        async function saveTask(event) {
+        async function saveUser(event) {
             event.preventDefault();
 
-            const rowNumber = document.getElementById('taskRowNumber').value;
-            const task = {
-                activity: document.getElementById('taskActivity').value,
-                department: document.getElementById('taskDepartment').value,
-                frequency: document.getElementById('taskFrequency').value,
-                noOfTimes: parseInt(document.getElementById('taskNoOfTimes').value) || 1,
-                specificDates: document.getElementById('taskSpecificDates').value,
-                comments: document.getElementById('taskComments').value
+            const rowNumber = document.getElementById('userRowNumber').value;
+            const user = {
+                email: document.getElementById('userEmail').value,
+                status: document.getElementById('userStatus').value,
+                role: document.getElementById('userRole').value
             };
 
             const saveButton = document.getElementById('saveButton');
@@ -771,34 +689,34 @@
             try {
                 let response;
                 if (rowNumber) {
-                    // Update existing task
-                    response = await fetch(`${API_BASE}/tasks/${rowNumber}`, {
+                    // Update existing user
+                    response = await fetch(`${API_BASE}/${rowNumber}`, {
                         method: 'PUT',
                         headers: getAuthHeaders(),
-                        body: JSON.stringify(task)
+                        body: JSON.stringify(user)
                     });
                 } else {
-                    // Create new task
-                    response = await fetch(`${API_BASE}/tasks`, {
+                    // Create new user
+                    response = await fetch(`${API_BASE}`, {
                         method: 'POST',
                         headers: getAuthHeaders(),
-                        body: JSON.stringify(task)
+                        body: JSON.stringify(user)
                     });
                 }
 
                 if (response.ok) {
-                    showStatus('success', rowNumber ? 'Task updated successfully!' : 'Task created successfully!');
+                    showStatus('success', rowNumber ? 'User updated successfully!' : 'User created successfully!');
                     closeModal();
-                    loadTasks();
+                    loadUsers();
                 } else {
                     const error = await response.text();
-                    showStatus('error', 'Error saving task: ' + error);
+                    showStatus('error', 'Error saving user: ' + error);
                 }
             } catch (error) {
-                showStatus('error', 'Error saving task: ' + error.message);
+                showStatus('error', 'Error saving user: ' + error.message);
             } finally {
                 saveButton.disabled = false;
-                saveButton.textContent = 'Save Task';
+                saveButton.textContent = 'Save User';
             }
         }
 
@@ -806,20 +724,20 @@
             if (!deleteRowNumber) return;
 
             try {
-                const response = await fetch(`${API_BASE}/tasks/${deleteRowNumber}`, {
+                const response = await fetch(`${API_BASE}/${deleteRowNumber}`, {
                     method: 'DELETE',
                     headers: getAuthHeaders()
                 });
 
                 if (response.ok) {
-                    showStatus('success', 'Task deleted successfully!');
+                    showStatus('success', 'User deleted successfully!');
                     closeDeleteModal();
-                    loadTasks();
+                    loadUsers();
                 } else {
-                    showStatus('error', 'Error deleting task');
+                    showStatus('error', 'Error deleting user');
                 }
             } catch (error) {
-                showStatus('error', 'Error deleting task: ' + error.message);
+                showStatus('error', 'Error deleting user: ' + error.message);
             }
         }
 
@@ -831,6 +749,49 @@
             setTimeout(() => {
                 statusDiv.className = 'status-message';
             }, 5000);
+        }
+
+        async function loadStatuses() {
+            try {
+                const response = await fetch(`${API_BASE}/statuses`, {
+                    headers: getAuthHeaders()
+                });
+                const statuses = await response.json();
+                populateSelect('filterStatus', statuses, 'All Statuses');
+                populateSelect('userStatus', statuses, 'Select Status');
+            } catch (error) {
+                console.error('Error loading statuses:', error);
+                // Fallback to defaults
+                populateSelect('filterStatus', ['Enabled', 'Disabled'], 'All Statuses');
+                populateSelect('userStatus', ['Enabled', 'Disabled'], 'Select Status');
+            }
+        }
+
+        async function loadRoles() {
+            try {
+                const response = await fetch(`${API_BASE}/roles`, {
+                    headers: getAuthHeaders()
+                });
+                const roles = await response.json();
+                populateSelect('filterRole', roles, 'All Roles');
+                populateSelect('userRole', roles, 'Select Role');
+            } catch (error) {
+                console.error('Error loading roles:', error);
+                // Fallback to defaults
+                populateSelect('filterRole', ['Admin', 'User'], 'All Roles');
+                populateSelect('userRole', ['Admin', 'User'], 'Select Role');
+            }
+        }
+
+        function populateSelect(selectId, options, defaultText) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = `<option value="">${defaultText}</option>`;
+            options.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt;
+                option.textContent = opt;
+                select.appendChild(option);
+            });
         }
     </script>
 </body>

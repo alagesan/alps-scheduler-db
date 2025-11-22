@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { taskService } from './services/api';
 import { format } from 'date-fns';
+import { useAuth } from './context/AuthContext';
+import Login from './components/Login';
 import './App.css';
 
 function App() {
+  const { user, loading: authLoading, logout, isAdmin } = useAuth();
   const [tasks, setTasks] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -14,13 +17,32 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    fetchDepartments();
-  }, []);
+    if (user) {
+      fetchDepartments();
+    }
+  }, [user]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    fetchTasks();
-  }, [activeTab, selectedDate, selectedDepartment]);
+    if (user) {
+      fetchTasks();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedDate, selectedDepartment, user]);
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="auth-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  // Show login if not authenticated
+  if (!user) {
+    return <Login />;
+  }
 
   const fetchDepartments = async () => {
     try {
@@ -78,6 +100,11 @@ function App() {
       const filtered = filterTasksByDepartment(taskList || []);
       return total + filtered.length;
     }, 0);
+  };
+
+  const handleLogout = () => {
+    logout();
+    setMenuOpen(false);
   };
 
   const renderTasks = () => {
@@ -190,22 +217,46 @@ function App() {
             </button>
             {menuOpen && (
               <div className="dropdown-menu">
+                <div className="dropdown-user-info">
+                  {user.picture && (
+                    <img src={user.picture} alt={user.name} className="user-avatar" />
+                  )}
+                  <div className="user-details">
+                    <span className="user-name">{user.name}</span>
+                    <span className="user-email">{user.email}</span>
+                    <span className={`user-role role-${user.role?.toLowerCase()}`}>{user.role}</span>
+                  </div>
+                </div>
+                <div className="dropdown-divider"></div>
                 <a href="/" className="dropdown-item active">
                   <span className="dropdown-icon">🏠</span>
                   Home
                 </a>
-                <a href="/batch/" className="dropdown-item">
-                  <span className="dropdown-icon">📧</span>
-                  Batch Control
-                </a>
-                <a href="/batch/master.html" className="dropdown-item">
-                  <span className="dropdown-icon">📋</span>
-                  Manage Task Master
-                </a>
-                <a href="/api-test/" className="dropdown-item">
-                  <span className="dropdown-icon">🔧</span>
-                  Test API
-                </a>
+                {isAdmin() && (
+                  <>
+                    <a href="/batch/" className="dropdown-item">
+                      <span className="dropdown-icon">📧</span>
+                      Batch Control
+                    </a>
+                    <a href="/batch/master.html" className="dropdown-item">
+                      <span className="dropdown-icon">📋</span>
+                      Manage Task Master
+                    </a>
+                    <a href="/batch/users.html" className="dropdown-item">
+                      <span className="dropdown-icon">👥</span>
+                      Manage Users
+                    </a>
+                    <a href="/api-test/" className="dropdown-item">
+                      <span className="dropdown-icon">🔧</span>
+                      Test API
+                    </a>
+                  </>
+                )}
+                <div className="dropdown-divider"></div>
+                <button className="dropdown-item logout-btn" onClick={handleLogout}>
+                  <span className="dropdown-icon">🚪</span>
+                  Sign Out
+                </button>
               </div>
             )}
           </div>

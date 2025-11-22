@@ -1,11 +1,15 @@
 # Multi-stage build for React PWA Application
 FROM node:18-alpine AS build
 
+# Build argument for Google OAuth Client ID
+ARG REACT_APP_GOOGLE_CLIENT_ID
+ENV REACT_APP_GOOGLE_CLIENT_ID=$REACT_APP_GOOGLE_CLIENT_ID
+
 WORKDIR /app
 
 # Copy package files and install dependencies
 COPY package*.json ./
-RUN npm ci --silent
+RUN npm ci
 
 # Copy source code and build
 COPY public ./public
