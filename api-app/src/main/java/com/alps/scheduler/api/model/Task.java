@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Task {
+    private Integer rowNumber;  // Row number in Google Sheet (for updates/deletes)
     private String activity;
     private String department;
     private String frequency;

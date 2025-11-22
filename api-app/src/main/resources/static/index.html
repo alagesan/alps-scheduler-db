@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ALPS Scheduler - API Test Page</title>
+    <title>ALPS DB Based Scheduler - API Test Page</title>
     <style>
         * {
             box-sizing: border-box;
@@ -90,7 +90,6 @@
         }
 
         .endpoint-method {
-            background: #28a745;
             color: white;
             padding: 4px 12px;
             border-radius: 4px;
@@ -98,6 +97,11 @@
             font-weight: bold;
             margin-right: 10px;
         }
+
+        .method-get { background: #28a745; }
+        .method-post { background: #007bff; }
+        .method-put { background: #ffc107; color: black; }
+        .method-delete { background: #dc3545; }
 
         .endpoint-path {
             flex: 1;
@@ -133,7 +137,8 @@
         }
 
         .param-group input,
-        .param-group select {
+        .param-group select,
+        .param-group textarea {
             width: 100%;
             padding: 8px 12px;
             border: 2px solid #e0e0e0;
@@ -141,8 +146,13 @@
             font-size: 14px;
         }
 
+        .param-group textarea {
+            font-family: 'Courier New', monospace;
+        }
+
         .param-group input:focus,
-        .param-group select:focus {
+        .param-group select:focus,
+        .param-group textarea:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -222,7 +232,7 @@
             margin-bottom: 10px;
         }
 
-        .status-200 {
+        .status-200, .status-201, .status-204 {
             background: #28a745;
             color: white;
         }
@@ -233,7 +243,6 @@
         }
 
         .category-header {
-            background: #2c3e50;
             color: white;
             padding: 12px 15px;
             border-radius: 5px;
@@ -241,18 +250,21 @@
             font-size: 16px;
             font-weight: bold;
         }
+
+        .category-schedule { background: #28a745; }
+        .category-master { background: #007bff; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>ALPS Scheduler API Test Page</h1>
-        <p class="subtitle">Test all REST API endpoints interactively</p>
+        <h1>ALPS DB Based Scheduler API Test Page</h1>
+        <p class="subtitle">Test Schedule Retrieval and Task Master Management APIs</p>
 
         <div class="api-config">
             <label>API Base URL:</label>
             <input type="text" id="apiBaseUrl" value="/api">
             <span style="color: #7f8c8d; font-size: 12px; margin-left: 10px;">
-                ✓ Automatically configured (served from API container)
+                Auto-configured (served from API container)
             </span>
         </div>
 
@@ -262,11 +274,8 @@
     <script>
         const apiBaseUrlInput = document.getElementById('apiBaseUrl');
         const endpointsContainer = document.getElementById('endpoints');
-
-        // Store endpoint configurations globally
         const endpointConfigs = {};
 
-        // Get current date for default values
         const today = new Date().toISOString().split('T')[0];
         const currentYear = new Date().getFullYear();
         const currentMonth = new Date().getMonth() + 1;
@@ -275,115 +284,170 @@
 
         const endpoints = [
             {
-                category: "Single Date Endpoints",
+                category: "Schedule Endpoints - Date Based Task Retrieval",
+                categoryClass: "category-schedule",
                 items: [
                     {
                         method: "GET",
-                        path: "/tasks/today",
-                        description: "Get all tasks scheduled for today",
+                        path: "/schedule/today",
+                        description: "Get scheduled tasks for today",
                         params: []
                     },
                     {
                         method: "GET",
-                        path: "/tasks/date/{date}",
-                        description: "Get tasks for a specific date",
+                        path: "/schedule/date/{date}",
+                        description: "Get scheduled tasks for a specific date",
                         params: [
                             { name: "date", type: "date", label: "Date", default: today, placeholder: "YYYY-MM-DD" }
                         ]
-                    }
-                ]
-            },
-            {
-                category: "Week Endpoints",
-                items: [
+                    },
                     {
                         method: "GET",
-                        path: "/tasks/week",
-                        description: "Get tasks for the current week (Sunday to Saturday)",
+                        path: "/schedule/week",
+                        description: "Get scheduled tasks for current week",
                         params: []
                     },
                     {
                         method: "GET",
-                        path: "/tasks/week/{date}",
-                        description: "Get tasks for the week containing the specified date",
+                        path: "/schedule/week/{date}",
+                        description: "Get scheduled tasks for week containing date",
                         params: [
                             { name: "date", type: "date", label: "Date", default: today, placeholder: "YYYY-MM-DD" }
                         ]
-                    }
-                ]
-            },
-            {
-                category: "Month/Quarter/Half-Year/Year Endpoints",
-                items: [
+                    },
                     {
                         method: "GET",
-                        path: "/tasks/month/{year}/{month}",
-                        description: "Get tasks for a specific month",
+                        path: "/schedule/month/{year}/{month}",
+                        description: "Get scheduled tasks for a specific month",
                         params: [
-                            { name: "year", type: "number", label: "Year", default: currentYear, placeholder: "2025" },
-                            { name: "month", type: "number", label: "Month (1-12)", default: currentMonth, placeholder: "11" }
+                            { name: "year", type: "number", label: "Year", default: currentYear },
+                            { name: "month", type: "number", label: "Month (1-12)", default: currentMonth }
                         ]
                     },
                     {
                         method: "GET",
-                        path: "/tasks/quarter/{year}/{quarter}",
-                        description: "Get tasks for a specific quarter",
+                        path: "/schedule/quarter/{year}/{quarter}",
+                        description: "Get scheduled tasks for a quarter",
                         params: [
-                            { name: "year", type: "number", label: "Year", default: currentYear, placeholder: "2025" },
-                            { name: "quarter", type: "number", label: "Quarter (1-4)", default: currentQuarter, placeholder: "4" }
+                            { name: "year", type: "number", label: "Year", default: currentYear },
+                            { name: "quarter", type: "number", label: "Quarter (1-4)", default: currentQuarter }
                         ]
                     },
                     {
                         method: "GET",
-                        path: "/tasks/half-year/{year}/{half}",
-                        description: "Get tasks for a half-year period",
+                        path: "/schedule/half-year/{year}/{half}",
+                        description: "Get scheduled tasks for half-year",
                         params: [
-                            { name: "year", type: "number", label: "Year", default: currentYear, placeholder: "2025" },
-                            { name: "half", type: "number", label: "Half (1 or 2)", default: currentHalf, placeholder: "2" }
+                            { name: "year", type: "number", label: "Year", default: currentYear },
+                            { name: "half", type: "number", label: "Half (1-2)", default: currentHalf }
                         ]
                     },
                     {
                         method: "GET",
-                        path: "/tasks/year/{year}",
-                        description: "Get all tasks for a specific year",
+                        path: "/schedule/year/{year}",
+                        description: "Get scheduled tasks for entire year",
                         params: [
-                            { name: "year", type: "number", label: "Year", default: currentYear, placeholder: "2025" }
+                            { name: "year", type: "number", label: "Year", default: currentYear }
                         ]
-                    }
-                ]
-            },
-            {
-                category: "Date Range & Department Endpoints",
-                items: [
+                    },
                     {
                         method: "GET",
-                        path: "/tasks/range?start={start}&end={end}",
-                        description: "Get tasks for a custom date range",
+                        path: "/schedule/range?start={start}&end={end}",
+                        description: "Get scheduled tasks for date range",
                         params: [
-                            { name: "start", type: "date", label: "Start Date", default: today, placeholder: "YYYY-MM-DD" },
-                            { name: "end", type: "date", label: "End Date", default: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString().split('T')[0], placeholder: "YYYY-MM-DD" }
+                            { name: "start", type: "date", label: "Start Date", default: today },
+                            { name: "end", type: "date", label: "End Date", default: new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0] }
                         ],
                         isQuery: true
+                    }
+                ]
+            },
+            {
+                category: "Master Endpoints - Task Definition Management (CRUD)",
+                categoryClass: "category-master",
+                items: [
+                    {
+                        method: "GET",
+                        path: "/master/tasks",
+                        description: "Get all task master records",
+                        params: []
                     },
                     {
                         method: "GET",
-                        path: "/tasks/department/{department}",
-                        description: "Get all tasks for a specific department",
+                        path: "/master/tasks/{rowNumber}",
+                        description: "Get task master record by row number",
                         params: [
-                            {
-                                name: "department",
-                                type: "select",
-                                label: "Department",
-                                default: "MEP",
-                                options: ["MEP", "HouseKeeping", "FrontOffice", "FnB", "Gardening"]
-                            }
+                            { name: "rowNumber", type: "number", label: "Row Number", default: 2 }
                         ]
                     },
                     {
                         method: "GET",
-                        path: "/tasks/departments",
-                        description: "Get list of all departments",
+                        path: "/master/departments",
+                        description: "Get all departments",
                         params: []
+                    },
+                    {
+                        method: "GET",
+                        path: "/master/frequencies",
+                        description: "Get all frequencies",
+                        params: []
+                    },
+                    {
+                        method: "GET",
+                        path: "/master/tasks/department/{department}",
+                        description: "Get tasks by department",
+                        params: [
+                            { name: "department", type: "select", label: "Department", default: "MEP",
+                              options: ["MEP", "HouseKeeping", "FrontOffice", "FnB", "Gardening"] }
+                        ]
+                    },
+                    {
+                        method: "GET",
+                        path: "/master/tasks/frequency/{frequency}",
+                        description: "Get tasks by frequency",
+                        params: [
+                            { name: "frequency", type: "select", label: "Frequency", default: "Daily",
+                              options: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly"] }
+                        ]
+                    },
+                    {
+                        method: "POST",
+                        path: "/master/tasks",
+                        description: "Create new task master record",
+                        params: [
+                            { name: "body", type: "json", label: "Request Body", default: JSON.stringify({
+                                activity: "Test Task",
+                                department: "MEP",
+                                frequency: "Daily",
+                                noOfTimes: 1,
+                                specificDates: "",
+                                comments: "Created via API"
+                            }, null, 2) }
+                        ]
+                    },
+                    {
+                        method: "PUT",
+                        path: "/master/tasks/{rowNumber}",
+                        description: "Update task master record",
+                        params: [
+                            { name: "rowNumber", type: "number", label: "Row Number", default: 2 },
+                            { name: "body", type: "json", label: "Request Body", default: JSON.stringify({
+                                activity: "Updated Task",
+                                department: "MEP",
+                                frequency: "Weekly",
+                                noOfTimes: 1,
+                                specificDates: "",
+                                comments: "Updated via API"
+                            }, null, 2) }
+                        ]
+                    },
+                    {
+                        method: "DELETE",
+                        path: "/master/tasks/{rowNumber}",
+                        description: "Delete task master record",
+                        params: [
+                            { name: "rowNumber", type: "number", label: "Row Number", default: 27 }
+                        ]
                     }
                 ]
             }
@@ -394,29 +458,30 @@
 
             endpoints.forEach(category => {
                 const categoryHeader = document.createElement('div');
-                categoryHeader.className = 'category-header';
+                categoryHeader.className = 'category-header ' + category.categoryClass;
                 categoryHeader.textContent = category.category;
                 endpointsContainer.appendChild(categoryHeader);
 
                 category.items.forEach((endpoint, index) => {
-                    const card = createEndpointCard(endpoint, `${category.category}-${index}`);
+                    const card = createEndpointCard(endpoint, `${category.categoryClass}-${index}`);
                     endpointsContainer.appendChild(card);
                 });
             });
         }
 
         function createEndpointCard(endpoint, id) {
-            // Store endpoint config globally so testEndpoint can access it
             endpointConfigs[id] = endpoint;
 
             const card = document.createElement('div');
             card.className = 'endpoint-card';
 
+            const methodClass = 'method-' + endpoint.method.toLowerCase();
+
             const header = document.createElement('div');
             header.className = 'endpoint-header';
             header.innerHTML = `
                 <div style="display: flex; align-items: center; flex: 1;">
-                    <span class="endpoint-method">${endpoint.method}</span>
+                    <span class="endpoint-method ${methodClass}">${endpoint.method}</span>
                     <span class="endpoint-path">${endpoint.path}</span>
                 </div>
                 <span class="endpoint-description">${endpoint.description}</span>
@@ -438,11 +503,18 @@
                                 </select>
                             </div>
                         `;
+                    } else if (param.type === 'json') {
+                        paramsHtml += `
+                            <div class="param-group">
+                                <label>${param.label}:</label>
+                                <textarea id="${id}-${param.name}" rows="8">${param.default}</textarea>
+                            </div>
+                        `;
                     } else {
                         paramsHtml += `
                             <div class="param-group">
                                 <label>${param.label}:</label>
-                                <input type="${param.type}" id="${id}-${param.name}" value="${param.default || ''}" placeholder="${param.placeholder}">
+                                <input type="${param.type}" id="${id}-${param.name}" value="${param.default || ''}" placeholder="${param.placeholder || ''}">
                             </div>
                         `;
                     }
@@ -472,7 +544,6 @@
         }
 
         async function testEndpoint(id) {
-            // Get endpoint config from global storage
             const endpoint = endpointConfigs[id];
 
             const button = document.getElementById(`btn-${id}`);
@@ -488,26 +559,41 @@
             statusDiv.innerHTML = '';
 
             let url = apiBaseUrlInput.value + endpoint.path;
+            let requestBody = null;
 
-            // Replace path parameters
             endpoint.params.forEach(param => {
-                const value = document.getElementById(`${id}-${param.name}`).value;
-                if (endpoint.isQuery) {
-                    // For query parameters, build query string
-                    url = url.replace(`{${param.name}}`, value);
+                if (param.type === 'json') {
+                    requestBody = document.getElementById(`${id}-${param.name}`).value;
                 } else {
-                    // For path parameters
+                    const value = document.getElementById(`${id}-${param.name}`).value;
                     url = url.replace(`{${param.name}}`, value);
                 }
             });
 
             try {
                 const startTime = Date.now();
-                const response = await fetch(url);
-                const endTime = Date.now();
-                const data = await response.json();
+                const options = {
+                    method: endpoint.method,
+                    headers: {}
+                };
 
-                const statusClass = response.ok ? 'status-200' : 'status-error';
+                if (requestBody && (endpoint.method === 'POST' || endpoint.method === 'PUT')) {
+                    options.headers['Content-Type'] = 'application/json';
+                    options.body = requestBody;
+                }
+
+                const response = await fetch(url, options);
+                const endTime = Date.now();
+
+                let data;
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    data = await response.json();
+                } else {
+                    data = await response.text() || '(No content)';
+                }
+
+                const statusClass = response.ok ? `status-${response.status}` : 'status-error';
                 statusDiv.innerHTML = `
                     <span class="status-badge ${statusClass}">
                         Status: ${response.status} ${response.statusText}
@@ -518,18 +604,17 @@
                 `;
 
                 resultDiv.className = 'response-box ' + (response.ok ? 'success' : 'error');
-                resultDiv.textContent = JSON.stringify(data, null, 2);
+                resultDiv.textContent = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
             } catch (error) {
                 statusDiv.innerHTML = '<span class="status-badge status-error">Error</span>';
                 resultDiv.className = 'response-box error';
-                resultDiv.textContent = `Error: ${error.message}\n\nMake sure the API server is running at ${apiBaseUrlInput.value}`;
+                resultDiv.textContent = `Error: ${error.message}\n\nMake sure the API server is running.`;
             }
 
             button.disabled = false;
             button.textContent = 'Test API';
         }
 
-        // Initialize
         renderEndpoints();
     </script>
 </body>

@@ -6,13 +6,20 @@ services:
     build:
       context: ./api-app
       dockerfile: Dockerfile
-    container_name: alps-scheduler-api
+    container_name: alps-db-scheduler-api
     ports:
       - "8080:8080"
     volumes:
-      - scheduler-data:/data
+      - ./credentials.json:/app/credentials.json:ro
     environment:
-      - SCHEDULER_CSV_PATH=/data/Scheduler-Master.csv
+      - GOOGLE_SHEETS_SPREADSHEET_ID=${GOOGLE_SHEETS_SPREADSHEET_ID}
+      - GOOGLE_SHEETS_CREDENTIALS_PATH=/app/credentials.json
+      - GOOGLE_SHEETS_SHEET_NAME=${GOOGLE_SHEETS_SHEET_NAME:-Tasks-Master}
+    env_file:
+      - .env
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     networks:
       - alps-network
     restart: unless-stopped
@@ -28,13 +35,15 @@ services:
     build:
       context: ./batch-app
       dockerfile: Dockerfile
-    container_name: alps-scheduler-batch
+    container_name: alps-db-scheduler-batch
     ports:
       - "8081:8081"
     volumes:
-      - scheduler-data:/data
+      - ./credentials.json:/app/credentials.json:ro
     environment:
-      - SCHEDULER_CSV_PATH=/data/Scheduler-Master.csv
+      - GOOGLE_SHEETS_SPREADSHEET_ID=${GOOGLE_SHEETS_SPREADSHEET_ID}
+      - GOOGLE_SHEETS_CREDENTIALS_PATH=/app/credentials.json
+      - GOOGLE_SHEETS_SHEET_NAME=${GOOGLE_SHEETS_SHEET_NAME:-Tasks-Master}
       - MAIL_USERNAME=${MAIL_USERNAME}
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - SPRING_MAIL_HOST=${SPRING_MAIL_HOST:-smtp.gmail.com}
@@ -55,7 +64,7 @@ services:
     build:
       context: ./pwa-app
       dockerfile: Dockerfile
-    container_name: alps-scheduler-pwa
+    container_name: alps-db-scheduler-pwa
     ports:
       - "3000:80"
     environment:
@@ -74,11 +83,3 @@ networks:
     ipam:
       config:
         - subnet: 172.25.0.0/16
-
-volumes:
-  scheduler-data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${PWD}

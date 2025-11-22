@@ -17,13 +17,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class TaskSchedulerService {
 
-    private final CsvParserService csvParserService;
+    private final GoogleSheetsService googleSheetsService;
 
     /**
      * Get tasks for a specific date
      */
     public List<Task> getTasksForDate(LocalDate date) {
-        List<Task> allTasks = csvParserService.getAllTasks();
+        List<Task> allTasks = googleSheetsService.getAllTasks();
         return allTasks.stream()
                 .filter(task -> isTaskScheduledForDate(task, date))
                 .collect(Collectors.toList());

@@ -1,0 +1,352 @@
+package com.alps.scheduler.api.service;
+
+import com.alps.scheduler.api.model.Task;
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.sheets.v4.Sheets;
+import com.google.api.services.sheets.v4.SheetsScopes;
+import com.google.api.services.sheets.v4.model.*;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+public class GoogleSheetsService {
+
+    private static final String APPLICATION_NAME = "Alps Scheduler";
+    private static final GsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
+
+    @Value("${google.sheets.spreadsheet-id}")
+    private String spreadsheetId;
+
+    @Value("${google.sheets.credentials-path}")
+    private String credentialsPath;
+
+    @Value("${google.sheets.sheet-name:Sheet1}")
+    private String sheetName;
+
+    private Sheets sheetsService;
+
+    @PostConstruct
+    public void init() throws GeneralSecurityException, IOException {
+        GoogleCredentials credentials = GoogleCredentials
+                .fromStream(new FileInputStream(credentialsPath))
+                .createScoped(Collections.singleton(SheetsScopes.SPREADSHEETS));
+
+        sheetsService = new Sheets.Builder(
+                GoogleNetHttpTransport.newTrustedTransport(),
+                JSON_FACTORY,
+                new HttpCredentialsAdapter(credentials))
+                .setApplicationName(APPLICATION_NAME)
+                .build();
+
+        log.info("Google Sheets service initialized for spreadsheet: {}", spreadsheetId);
+    }
+
+    /**
+     * Get all tasks from the Google Sheet
+     */
+    public List<Task> getAllTasks() {
+        try {
+            String range = sheetName + "!A2:F"; // Skip header row
+            ValueRange response = sheetsService.spreadsheets().values()
+                    .get(spreadsheetId, range)
+                    .execute();
+
+            List<List<Object>> values = response.getValues();
+            if (values == null || values.isEmpty()) {
+                log.info("No tasks found in the spreadsheet");
+                return new ArrayList<>();
+            }
+
+            List<Task> tasks = new ArrayList<>();
+            int rowIndex = 2; // Start from row 2 (after header)
+            for (List<Object> row : values) {
+                Task task = mapRowToTask(row, rowIndex);
+                if (task != null) {
+                    tasks.add(task);
+                }
+                rowIndex++;
+            }
+
+            log.info("Loaded {} tasks from Google Sheets", tasks.size());
+            return tasks;
+
+        } catch (IOException e) {
+            log.error("Error reading from Google Sheets", e);
+            throw new RuntimeException("Failed to read tasks from Google Sheets", e);
+        }
+    }
+
+    /**
+     * Get a task by row number
+     */
+    public Optional<Task> getTaskByRowNumber(int rowNumber) {
+        try {
+            String range = sheetName + "!A" + rowNumber + ":F" + rowNumber;
+            ValueRange response = sheetsService.spreadsheets().values()
+                    .get(spreadsheetId, range)
+                    .execute();
+
+            List<List<Object>> values = response.getValues();
+            if (values == null || values.isEmpty()) {
+                return Optional.empty();
+            }
+
+            return Optional.ofNullable(mapRowToTask(values.get(0), rowNumber));
+
+        } catch (IOException e) {
+            log.error("Error reading task from Google Sheets", e);
+            throw new RuntimeException("Failed to read task from Google Sheets", e);
+        }
+    }
+
+    /**
+     * Create a new task (append to sheet)
+     */
+    public Task createTask(Task task) {
+        try {
+            List<Object> rowData = taskToRow(task);
+            ValueRange body = new ValueRange().setValues(Collections.singletonList(rowData));
+
+            AppendValuesResponse response = sheetsService.spreadsheets().values()
+                    .append(spreadsheetId, sheetName + "!A:F", body)
+                    .setValueInputOption("USER_ENTERED")
+                    .setInsertDataOption("INSERT_ROWS")
+                    .execute();
+
+            // Extract the row number from the updated range
+            String updatedRange = response.getUpdates().getUpdatedRange();
+            int rowNumber = extractRowNumber(updatedRange);
+            task.setRowNumber(rowNumber);
+
+            log.info("Created new task at row {}: {}", rowNumber, task.getActivity());
+            return task;
+
+        } catch (IOException e) {
+            log.error("Error creating task in Google Sheets", e);
+            throw new RuntimeException("Failed to create task in Google Sheets", e);
+        }
+    }
+
+    /**
+     * Update an existing task by row number
+     */
+    public Task updateTask(int rowNumber, Task task) {
+        try {
+            String range = sheetName + "!A" + rowNumber + ":F" + rowNumber;
+            List<Object> rowData = taskToRow(task);
+            ValueRange body = new ValueRange().setValues(Collections.singletonList(rowData));
+
+            sheetsService.spreadsheets().values()
+                    .update(spreadsheetId, range, body)
+                    .setValueInputOption("USER_ENTERED")
+                    .execute();
+
+            task.setRowNumber(rowNumber);
+            log.info("Updated task at row {}: {}", rowNumber, task.getActivity());
+            return task;
+
+        } catch (IOException e) {
+            log.error("Error updating task in Google Sheets", e);
+            throw new RuntimeException("Failed to update task in Google Sheets", e);
+        }
+    }
+
+    /**
+     * Delete a task by row number (clears the row content)
+     */
+    public void deleteTask(int rowNumber) {
+        try {
+            // Get the sheet ID first
+            Spreadsheet spreadsheet = sheetsService.spreadsheets()
+                    .get(spreadsheetId)
+                    .execute();
+
+            Integer sheetId = null;
+            for (Sheet sheet : spreadsheet.getSheets()) {
+                if (sheet.getProperties().getTitle().equals(sheetName)) {
+                    sheetId = sheet.getProperties().getSheetId();
+                    break;
+                }
+            }
+
+            if (sheetId == null) {
+                throw new RuntimeException("Sheet not found: " + sheetName);
+            }
+
+            // Delete the row
+            DeleteDimensionRequest deleteRequest = new DeleteDimensionRequest()
+                    .setRange(new DimensionRange()
+                            .setSheetId(sheetId)
+                            .setDimension("ROWS")
+                            .setStartIndex(rowNumber - 1) // 0-indexed
+                            .setEndIndex(rowNumber));
+
+            BatchUpdateSpreadsheetRequest batchRequest = new BatchUpdateSpreadsheetRequest()
+                    .setRequests(Collections.singletonList(
+                            new Request().setDeleteDimension(deleteRequest)));
+
+            sheetsService.spreadsheets()
+                    .batchUpdate(spreadsheetId, batchRequest)
+                    .execute();
+
+            log.info("Deleted task at row {}", rowNumber);
+
+        } catch (IOException e) {
+            log.error("Error deleting task from Google Sheets", e);
+            throw new RuntimeException("Failed to delete task from Google Sheets", e);
+        }
+    }
+
+    /**
+     * Get tasks by department
+     */
+    public List<Task> getTasksByDepartment(String department) {
+        return getAllTasks().stream()
+                .filter(task -> task.getDepartment().equalsIgnoreCase(department))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get all departments from Named Range "Departments"
+     */
+    public List<String> getAllDepartments() {
+        return getValuesFromNamedRange("Departments");
+    }
+
+    /**
+     * Get all frequencies from Named Range "Frequencies"
+     */
+    public List<String> getAllFrequencies() {
+        return getValuesFromNamedRange("Frequencies");
+    }
+
+    /**
+     * Get values from a Named Range in the spreadsheet
+     */
+    private List<String> getValuesFromNamedRange(String namedRange) {
+        try {
+            ValueRange response = sheetsService.spreadsheets().values()
+                    .get(spreadsheetId, namedRange)
+                    .execute();
+
+            List<List<Object>> values = response.getValues();
+            if (values == null || values.isEmpty()) {
+                log.warn("No values found in Named Range: {}", namedRange);
+                return new ArrayList<>();
+            }
+
+            List<String> result = new ArrayList<>();
+            for (List<Object> row : values) {
+                if (row != null && !row.isEmpty() && row.get(0) != null) {
+                    String value = row.get(0).toString().trim();
+                    if (!value.isEmpty()) {
+                        result.add(value);
+                    }
+                }
+            }
+
+            log.info("Loaded {} values from Named Range '{}'", result.size(), namedRange);
+            return result;
+
+        } catch (IOException e) {
+            log.error("Error reading Named Range '{}' from Google Sheets: {}", namedRange, e.getMessage());
+            // Fallback to extracting from tasks if Named Range doesn't exist
+            log.info("Falling back to extracting {} from task data", namedRange.toLowerCase());
+            if ("Departments".equals(namedRange)) {
+                return getAllTasks().stream()
+                        .map(Task::getDepartment)
+                        .distinct()
+                        .sorted()
+                        .collect(Collectors.toList());
+            } else if ("Frequencies".equals(namedRange)) {
+                return getAllTasks().stream()
+                        .map(Task::getFrequency)
+                        .distinct()
+                        .sorted()
+                        .collect(Collectors.toList());
+            }
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * Map a row from the sheet to a Task object
+     */
+    private Task mapRowToTask(List<Object> row, int rowNumber) {
+        if (row == null || row.isEmpty()) {
+            return null;
+        }
+
+        try {
+            return Task.builder()
+                    .rowNumber(rowNumber)
+                    .activity(getStringValue(row, 0))
+                    .department(getStringValue(row, 1))
+                    .frequency(getStringValue(row, 2))
+                    .noOfTimes(getIntValue(row, 3))
+                    .specificDates(getStringValue(row, 4))
+                    .comments(getStringValue(row, 5))
+                    .build();
+        } catch (Exception e) {
+            log.warn("Error mapping row {} to Task: {}", rowNumber, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Convert a Task to a row for the sheet
+     */
+    private List<Object> taskToRow(Task task) {
+        return Arrays.asList(
+                task.getActivity() != null ? task.getActivity() : "",
+                task.getDepartment() != null ? task.getDepartment() : "",
+                task.getFrequency() != null ? task.getFrequency() : "",
+                task.getNoOfTimes() != null ? task.getNoOfTimes() : "",
+                task.getSpecificDates() != null ? task.getSpecificDates() : "",
+                task.getComments() != null ? task.getComments() : ""
+        );
+    }
+
+    private String getStringValue(List<Object> row, int index) {
+        if (index >= row.size() || row.get(index) == null) {
+            return "";
+        }
+        return row.get(index).toString().trim();
+    }
+
+    private Integer getIntValue(List<Object> row, int index) {
+        String value = getStringValue(row, index);
+        if (value.isEmpty()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private int extractRowNumber(String range) {
+        // Range format: "Sheet1!A5:F5" - extract 5
+        String[] parts = range.split("!");
+        if (parts.length > 1) {
+            String cellRange = parts[1];
+            String rowPart = cellRange.replaceAll("[A-Z:]", "");
+            String[] rows = rowPart.split("(?<=\\d)(?=\\d)");
+            return Integer.parseInt(rows[0]);
+        }
+        return -1;
+    }
+}

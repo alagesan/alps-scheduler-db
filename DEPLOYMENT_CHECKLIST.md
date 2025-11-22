@@ -1,6 +1,6 @@
-# ALPS Scheduler - Deployment Checklist
+# ALPS DB Based Scheduler - Deployment Checklist
 
-Use this checklist to ensure successful deployment of the ALPS Scheduler system.
+Use this checklist to ensure successful deployment of the ALPS DB Based Scheduler system.
 
 ## Pre-Deployment
 
@@ -11,110 +11,134 @@ Use this checklist to ensure successful deployment of the ALPS Scheduler system.
 - [ ] Network connectivity available
 - [ ] Ports 3000, 8080, 8081 are available
 
-### Configuration
+### Google Sheets Configuration
+- [ ] Google Cloud project created
+- [ ] Google Sheets API enabled
+- [ ] Service Account created
+- [ ] `credentials.json` downloaded
+- [ ] Google Sheet created with `Tasks-Master` tab
+- [ ] Google Sheet shared with service account email
+- [ ] Spreadsheet ID noted (from URL)
+- [ ] (Optional) Named Ranges created: `Departments`, `Frequencies`
+
+### Application Configuration
 - [ ] `.env` file created from `.env.example`
+- [ ] `GOOGLE_SHEETS_SPREADSHEET_ID` set in `.env`
+- [ ] `GOOGLE_SHEETS_SHEET_NAME` set (default: Tasks-Master)
 - [ ] Email credentials added to `.env`
 - [ ] Gmail App Password generated (if using Gmail)
-- [ ] `Scheduler-Master.csv` file present in project root
-- [ ] CSV file has correct format and data
+- [ ] `credentials.json` placed in project root
+
+---
 
 ## Deployment Steps
 
 ### 1. Initial Setup
 ```bash
-- [ ] cd /home/alpandy/al/ai-experiment/projects/alps-scheduler
+- [ ] cd /path/to/alps-scheduler-db
 - [ ] cp .env.example .env
-- [ ] nano .env  # Add credentials
-- [ ] ls Scheduler-Master.csv  # Verify file exists
+- [ ] nano .env  # Add Google Sheets and email credentials
+- [ ] ls credentials.json  # Verify credentials file exists
 ```
 
 ### 2. Build and Start
 ```bash
-- [ ] ./start.sh
-# OR
-- [ ] docker-compose up --build -d
+- [ ] docker compose up --build -d
 ```
 
 ### 3. Verify Containers
 ```bash
 - [ ] docker ps  # Should show 3 running containers
-- [ ] docker logs alps-scheduler-api
-- [ ] docker logs alps-scheduler-batch
-- [ ] docker logs alps-scheduler-pwa
+- [ ] docker logs alps-db-scheduler-api
+- [ ] docker logs alps-db-scheduler-batch
+- [ ] docker logs alps-db-scheduler-pwa
 ```
 
 Expected output:
 ```
-alps-scheduler-api      running
-alps-scheduler-batch    running
-alps-scheduler-pwa      running
+alps-db-scheduler-api      running
+alps-db-scheduler-batch    running
+alps-db-scheduler-pwa      running
 ```
+
+---
 
 ## Post-Deployment Testing
 
 ### API Testing
-- [ ] Open http://localhost:8080/api/tasks/today
-- [ ] Verify JSON response with tasks
-- [ ] Open http://localhost:8080/api/tasks/departments
-- [ ] Verify department list returned
+- [ ] Open http://localhost:8080 (API Test Page)
+- [ ] Test Schedule Endpoints:
+  - [ ] GET /api/schedule/today - returns tasks
+  - [ ] GET /api/schedule/week - returns weekly tasks
+- [ ] Test Master Endpoints:
+  - [ ] GET /api/master/tasks - returns all tasks from Google Sheets
+  - [ ] GET /api/master/departments - returns department list
+  - [ ] GET /api/master/frequencies - returns frequency list
 
 ### PWA Testing
 - [ ] Open http://localhost:3000
 - [ ] Verify page loads without errors
 - [ ] Check browser console (F12) - no errors
-- [ ] Select "Daily" view - tasks appear
-- [ ] Select "Weekly" view - 7 days shown
-- [ ] Select "Monthly" view - month tasks shown
-- [ ] Change date picker - tasks update
-- [ ] Select department filter - tasks filter correctly
-- [ ] Click "Refresh" button - data reloads
+- [ ] Test **Today** tab - today's tasks appear
+- [ ] Test **Week** tab - weekly tasks shown
+- [ ] Test **Search** tab - date picker works
+- [ ] Test department filter - tasks filter correctly
+- [ ] Verify task count updates correctly
 
-### Email Testing (Wait for Scheduled Time)
-- [ ] Wait for 7:00 AM IST or 7:00 PM IST
-- [ ] Check email at internal@alpsresidencymadurai.in
+### Batch App Testing
+- [ ] Open http://localhost:8081 (Batch Control Panel)
+- [ ] Test "Send Email for Today" button
+- [ ] Open http://localhost:8081/master.html (Task Master Management)
+- [ ] Verify tasks load from Google Sheets
+- [ ] Test Add Task - new row appears in Google Sheets
+- [ ] Test Edit Task - changes reflect in Google Sheets
+- [ ] Test Delete Task - row removed from Google Sheets
+
+### Email Testing
+- [ ] Wait for 7:00 AM IST or 7:00 PM IST (or trigger manually)
+- [ ] Check recipient inbox
 - [ ] Verify email received
 - [ ] Verify today's tasks section present
 - [ ] Verify weekly schedule section present
 - [ ] Check formatting is correct
 
-### CSV Hot-Reload Testing
-- [ ] Edit Scheduler-Master.csv
-- [ ] Add a new test task
-- [ ] Save the file
-- [ ] Wait 2 seconds
-- [ ] Refresh PWA (http://localhost:3000)
-- [ ] Verify new task appears
-- [ ] Remove test task
-- [ ] Save again
-- [ ] Verify task disappears
+### Google Sheets Sync Testing
+- [ ] Add a task via http://localhost:8081/master.html
+- [ ] Verify it appears in Google Sheet
+- [ ] Edit a task in Google Sheet directly
+- [ ] Refresh PWA - verify change appears
+- [ ] Delete a task via UI
+- [ ] Verify row removed from Google Sheet
 
 ### Mobile Responsive Testing
 - [ ] Open PWA on mobile device or browser dev tools
 - [ ] Switch to mobile view (F12 → Toggle device toolbar)
 - [ ] Verify layout adjusts correctly
-- [ ] Test all controls work on mobile
+- [ ] Test all navigation tabs work on mobile
 - [ ] Verify touch interactions work
+
+---
 
 ## Monitoring
 
 ### Check Logs
 ```bash
-- [ ] docker-compose logs -f api-app
-- [ ] docker-compose logs -f batch-app
-- [ ] docker-compose logs -f pwa-app
+- [ ] docker compose logs -f api-app
+- [ ] docker compose logs -f batch-app
+- [ ] docker compose logs -f pwa-app
 ```
 
 Look for:
-- [ ] "Loaded X tasks from CSV" messages
+- [ ] "Loaded X tasks from Google Sheets" messages
 - [ ] No error stack traces
 - [ ] Scheduled job execution logs (at 7 AM/PM)
 
 ### Health Checks
 ```bash
-- [ ] docker inspect alps-scheduler-api | grep -A 10 Health
+- [ ] curl http://localhost:8080/api/schedule/today
 ```
 
-Should show: "Status": "healthy"
+Should return JSON array of tasks.
 
 ### Resource Usage
 ```bash
@@ -125,34 +149,37 @@ Verify:
 - [ ] CPU usage < 10% when idle
 - [ ] Memory usage reasonable (< 500MB per container)
 
+---
+
 ## Troubleshooting
 
 ### Containers Not Starting
 ```bash
-- [ ] docker-compose down
-- [ ] docker-compose up --build
+- [ ] docker compose down
+- [ ] docker compose up --build
 - [ ] Check error messages
 ```
 
+### Google Sheets API Error
+- [ ] Verify `credentials.json` exists in project root
+- [ ] Check service account email has access to spreadsheet
+- [ ] Ensure spreadsheet is native Google Sheet (not uploaded Excel)
+- [ ] Verify spreadsheet ID in `.env` is correct
+- [ ] Check DNS resolution: `docker exec alps-db-scheduler-api ping sheets.googleapis.com`
+
 ### Email Not Sending
 - [ ] Verify .env has correct credentials
-- [ ] Check batch-app logs: `docker logs alps-scheduler-batch`
+- [ ] Check batch-app logs: `docker logs alps-db-scheduler-batch`
 - [ ] Verify SMTP settings in .env
 - [ ] Test SMTP credentials separately
 - [ ] Check firewall settings (port 587)
 
-### PWA Not Loading
-- [ ] Check if API is accessible: http://localhost:8080/api/tasks/today
+### PWA Not Loading Tasks
+- [ ] Check if API is accessible: http://localhost:8080/api/schedule/today
 - [ ] Verify CORS is enabled in API
 - [ ] Check browser console for errors
 - [ ] Clear browser cache
 - [ ] Try different browser
-
-### CSV Changes Not Reflecting
-- [ ] Wait 2-3 seconds after saving
-- [ ] Check logs for "CSV file modified" message
-- [ ] Verify file permissions
-- [ ] Restart containers if needed
 
 ### Port Conflicts
 ```bash
@@ -163,29 +190,36 @@ Verify:
 
 Solution: Stop conflicting services or change ports in docker-compose.yml
 
+---
+
 ## Production Readiness
 
 ### Security
 - [ ] `.env` file not committed to git (check .gitignore)
+- [ ] `credentials.json` not committed to git
 - [ ] Email credentials are secure
+- [ ] Google Sheet has restricted access
 - [ ] CORS configured correctly
 - [ ] No sensitive data in logs
 
 ### Backup
-- [ ] Scheduler-Master.csv backed up
-- [ ] .env file backed up securely
+- [ ] Google Sheet has version history enabled
+- [ ] `.env` file backed up securely
+- [ ] `credentials.json` backed up securely
 - [ ] Documentation available
 
 ### Documentation
 - [ ] README.md reviewed
 - [ ] QUICK_START.md available
 - [ ] Team trained on usage
+- [ ] Task Master Management UI explained
 
 ### Maintenance
-- [ ] Schedule regular CSV backups
-- [ ] Monitor disk space
 - [ ] Monitor email delivery
 - [ ] Plan for updates
+- [ ] Google API quota monitoring
+
+---
 
 ## Go-Live Checklist
 
@@ -195,7 +229,8 @@ Solution: Stop conflicting services or change ports in docker-compose.yml
 - [ ] Email sending successfully
 - [ ] PWA accessible
 - [ ] Mobile responsive
-- [ ] CSV hot-reload working
+- [ ] Google Sheets sync working
+- [ ] Task Master CRUD working
 
 ### Communication
 - [ ] Team notified of go-live
@@ -206,30 +241,36 @@ Solution: Stop conflicting services or change ports in docker-compose.yml
 ### Monitoring Plan
 - [ ] Daily log review scheduled
 - [ ] Email delivery monitoring set up
-- [ ] Weekly CSV backup scheduled
 - [ ] Incident response plan ready
+
+---
 
 ## Rollback Plan
 
 If issues occur:
 ```bash
-- [ ] docker-compose down
-- [ ] Restore previous CSV backup
+- [ ] docker compose down
 - [ ] Restore previous .env
-- [ ] docker-compose up -d
+- [ ] docker compose up -d
 - [ ] Verify system works
 ```
+
+Note: Data is stored in Google Sheets, so no data backup/restore needed.
+
+---
 
 ## Success Criteria
 
 System is successfully deployed when:
-- ✅ All 3 containers running
-- ✅ PWA accessible at http://localhost:3000
-- ✅ API responding at http://localhost:8080
-- ✅ Emails sending at 7 AM and 7 PM IST
-- ✅ CSV hot-reload working
-- ✅ No errors in logs
-- ✅ Team can access and use system
+- All 3 containers running
+- PWA accessible at http://localhost:3000
+- API responding at http://localhost:8080
+- Batch Control Panel at http://localhost:8081
+- Task Master Management at http://localhost:8081/master.html
+- Emails sending at 7 AM and 7 PM IST
+- Google Sheets sync working (real-time CRUD)
+- No errors in logs
+- Team can access and use system
 
 ---
 

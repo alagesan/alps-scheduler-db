@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { taskService } from './services/api';
-import { format, startOfWeek, addDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
+import { format } from 'date-fns';
 import './App.css';
 
 function App() {
   const [tasks, setTasks] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [viewType, setViewType] = useState('daily');
+  const [activeTab, setActiveTab] = useState('today'); // 'today', 'week', 'search'
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [departments, setDepartments] = useState([]);
@@ -16,9 +16,10 @@ function App() {
     fetchDepartments();
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchTasks();
-  }, [viewType, selectedDate, selectedDepartment]);
+  }, [activeTab, selectedDate, selectedDepartment]);
 
   const fetchDepartments = async () => {
     try {
@@ -34,40 +35,15 @@ function App() {
     setError(null);
     try {
       let response;
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      const year = selectedDate.getFullYear();
-      const month = selectedDate.getMonth() + 1;
-      const quarter = Math.floor(selectedDate.getMonth() / 3) + 1;
-      const half = selectedDate.getMonth() < 6 ? 1 : 2;
+      const dateStr = format(activeTab === 'today' ? new Date() : selectedDate, 'yyyy-MM-dd');
 
-      switch (viewType) {
-        case 'daily':
-          response = await taskService.getTasksByDate(dateStr);
-          setTasks({ [dateStr]: response.data });
-          break;
-        case 'weekly':
-          response = await taskService.getTasksForWeek(dateStr);
-          setTasks(response.data);
-          break;
-        case 'monthly':
-          response = await taskService.getTasksForMonth(year, month);
-          setTasks(response.data);
-          break;
-        case 'quarterly':
-          response = await taskService.getTasksForQuarter(year, quarter);
-          setTasks(response.data);
-          break;
-        case 'half-yearly':
-          response = await taskService.getTasksForHalfYear(year, half);
-          setTasks(response.data);
-          break;
-        case 'yearly':
-          response = await taskService.getTasksForYear(year);
-          setTasks(response.data);
-          break;
-        default:
-          response = await taskService.getTasksByDate(dateStr);
-          setTasks({ [dateStr]: response.data });
+      if (activeTab === 'week') {
+        response = await taskService.getTasksForWeek(dateStr);
+        setTasks(response.data);
+      } else {
+        // 'today' or 'search' - both use daily view
+        response = await taskService.getTasksByDate(dateStr);
+        setTasks({ [dateStr]: response.data });
       }
     } catch (err) {
       setError('Failed to fetch tasks. Please check if the API server is running.');
@@ -95,17 +71,63 @@ function App() {
     return grouped;
   };
 
+  const getTotalTaskCount = () => {
+    if (!tasks) return 0;
+    return Object.values(tasks).reduce((total, taskList) => {
+      const filtered = filterTasksByDepartment(taskList || []);
+      return total + filtered.length;
+    }, 0);
+  };
+
   const renderTasks = () => {
     if (loading) {
-      return <div className="loading">Loading tasks...</div>;
+      return (
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading tasks...</p>
+        </div>
+      );
     }
 
     if (error) {
-      return <div className="error">{error}</div>;
+      return (
+        <div className="error-container">
+          <div className="error-icon">⚠️</div>
+          <p>{error}</p>
+        </div>
+      );
     }
 
-    if (!tasks || Object.keys(tasks).length === 0) {
-      return <div className="no-tasks">No tasks found for this period.</div>;
+    // Check if there are no tasks at all, or all task arrays are empty
+    const hasNoTasks = !tasks ||
+      Object.keys(tasks).length === 0 ||
+      Object.values(tasks).every(taskList => !taskList || taskList.length === 0);
+
+    // Also check if filtering by department results in no tasks
+    const hasNoFilteredTasks = !hasNoTasks && selectedDepartment !== 'all' &&
+      Object.values(tasks).every(taskList =>
+        !taskList || taskList.filter(t => t.department === selectedDepartment).length === 0
+      );
+
+    if (hasNoTasks || hasNoFilteredTasks) {
+      const displayDate = activeTab === 'today' ? new Date() : selectedDate;
+      return (
+        <div className="no-tasks-container">
+          <div className="no-tasks-icon">📋</div>
+          <h2 className="no-tasks-title">No Tasks Scheduled</h2>
+          <p className="no-tasks-message">
+            There are no tasks scheduled for the selected criteria.
+          </p>
+          <div className="no-tasks-details">
+            <p><strong>View:</strong> {activeTab === 'week' ? 'Weekly' : 'Daily'}</p>
+            <p><strong>Date:</strong> {format(displayDate, 'MMMM d, yyyy')}</p>
+            {selectedDepartment !== 'all' && (
+              <p><strong>Department:</strong> {selectedDepartment}</p>
+            )}
+          </div>
+          <p className="no-tasks-hint">Try selecting a different date or department.</p>
+        </div>
+      );
     }
 
     return (
@@ -120,20 +142,30 @@ function App() {
 
           return (
             <div key={date} className="date-section">
-              <h2 className="date-header">{format(new Date(date), 'EEEE, MMMM d, yyyy')}</h2>
+              <h2 className="date-header">
+                <span className="date-icon">📅</span>
+                {format(new Date(date), 'EEEE, MMMM d, yyyy')}
+              </h2>
 
               {Object.entries(groupedTasks).map(([dept, deptTasks]) => (
                 <div key={dept} className="department-section">
                   <h3 className="department-header">
-                    {dept} <span className="task-count">({deptTasks.length} tasks)</span>
+                    <span className="dept-badge">{dept}</span>
+                    <span className="task-count">{deptTasks.length} task{deptTasks.length !== 1 ? 's' : ''}</span>
                   </h3>
                   <ul className="task-list">
                     {deptTasks.map((task, index) => (
                       <li key={index} className="task-item">
-                        <div className="task-name">{task.activity}</div>
-                        <div className="task-frequency">Frequency: {task.frequency}</div>
+                        <div className="task-header">
+                          <span className="task-name">{task.activity}</span>
+                          <span className={`frequency-badge ${task.frequency.toLowerCase()}`}>
+                            {task.frequency}
+                          </span>
+                        </div>
                         {task.comments && (
-                          <div className="task-comments">Note: {task.comments}</div>
+                          <div className="task-comments">
+                            <span className="comment-icon">💬</span> {task.comments}
+                          </div>
                         )}
                       </li>
                     ))}
@@ -150,33 +182,50 @@ function App() {
   return (
     <div className="App">
       <header className="app-header">
-        <h1>ALPS Residency Task Scheduler</h1>
+        <h1>ALPS Residency</h1>
+        <p className="subtitle">DB Based Task Scheduler</p>
       </header>
 
-      <div className="controls">
-        <div className="control-group">
-          <label>View:</label>
-          <select value={viewType} onChange={(e) => setViewType(e.target.value)}>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-            <option value="quarterly">Quarterly</option>
-            <option value="half-yearly">Half-Yearly</option>
-            <option value="yearly">Yearly</option>
-          </select>
-        </div>
+      <nav className="nav-tabs">
+        <button
+          className={`nav-tab ${activeTab === 'today' ? 'active' : ''}`}
+          onClick={() => setActiveTab('today')}
+        >
+          <span className="tab-icon">📆</span>
+          <span className="tab-label">Today</span>
+        </button>
+        <button
+          className={`nav-tab ${activeTab === 'week' ? 'active' : ''}`}
+          onClick={() => setActiveTab('week')}
+        >
+          <span className="tab-icon">📅</span>
+          <span className="tab-label">Week</span>
+        </button>
+        <button
+          className={`nav-tab ${activeTab === 'search' ? 'active' : ''}`}
+          onClick={() => setActiveTab('search')}
+        >
+          <span className="tab-icon">🔍</span>
+          <span className="tab-label">Search</span>
+        </button>
+      </nav>
 
-        <div className="control-group">
-          <label>Date:</label>
-          <input
-            type="date"
-            value={format(selectedDate, 'yyyy-MM-dd')}
-            onChange={(e) => setSelectedDate(new Date(e.target.value))}
-          />
+      {activeTab === 'search' && (
+        <div className="search-controls">
+          <div className="control-group">
+            <label>Select Date</label>
+            <input
+              type="date"
+              value={format(selectedDate, 'yyyy-MM-dd')}
+              onChange={(e) => setSelectedDate(new Date(e.target.value))}
+            />
+          </div>
         </div>
+      )}
 
-        <div className="control-group">
-          <label>Department:</label>
+      <div className="filter-bar">
+        <div className="filter-group">
+          <label>Department</label>
           <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)}>
             <option value="all">All Departments</option>
             {departments.map(dept => (
@@ -184,13 +233,19 @@ function App() {
             ))}
           </select>
         </div>
-
-        <button onClick={fetchTasks} className="refresh-button">Refresh</button>
+        <div className="task-summary">
+          <span className="summary-count">{getTotalTaskCount()}</span>
+          <span className="summary-label">tasks</span>
+        </div>
       </div>
 
       <main className="main-content">
         {renderTasks()}
       </main>
+
+      <footer className="app-footer">
+        <p>ALPS Residency Task Management</p>
+      </footer>
     </div>
   );
 }

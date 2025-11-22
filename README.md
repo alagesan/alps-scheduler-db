@@ -1,263 +1,334 @@
-# ALPS Residency Task Scheduler
+# ALPS DB Based Scheduler
 
-A comprehensive task scheduling and management system for ALPS Residency Madurai that sends automated email reminders twice daily and provides a Progressive Web App (PWA) interface for viewing and managing tasks.
+A comprehensive task scheduling and management system for ALPS Residency Madurai, using **Google Sheets as the database backend**.
+
+## Overview
+
+This system provides:
+- **Automated email notifications** at 7 AM and 7 PM IST with daily and weekly task schedules
+- **REST API** for retrieving scheduled tasks and managing task definitions
+- **Progressive Web App (PWA)** for viewing tasks on any device
+- **Task Master Management UI** for CRUD operations on task definitions
+- **Google Sheets integration** for real-time data synchronization
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│              Google Sheets (Database)                │
+│                  Tasks-Master                        │
+│           Named Ranges: Departments, Frequencies     │
+└─────────────────────┬───────────────────────────────┘
+                      │ Google Sheets API v4
+         ┌────────────┴────────────┐
+         ▼                         ▼
+┌─────────────────┐       ┌─────────────────┐
+│  Batch App      │       │   API App       │
+│  (Port 8081)    │       │  (Port 8080)    │
+│ • Email Jobs    │       │ • Schedule APIs │
+│ • Task CRUD UI  │       │ • Master APIs   │
+└─────────────────┘       └────────┬────────┘
+                                   │
+                          ┌────────▼────────┐
+                          │   PWA App       │
+                          │  (Port 3000)    │
+                          │ • Today/Week/   │
+                          │   Search views  │
+                          └─────────────────┘
+```
 
 ## Features
 
-### Batch Application (Spring Boot)
-- Automated email reminders sent at **7:00 AM IST** and **7:00 PM IST**
-- Email includes:
-  - Tasks scheduled for the current day (grouped by department)
-  - Complete weekly schedule
-- Supports multiple scheduling frequencies:
-  - Daily
-  - Weekly
-  - Monthly
-  - Quarterly
-  - Half-Yearly
-  - Yearly
-- Hot-reload CSV file without application restart
-- Sends emails to: internal@alpsresidencymadurai.in
+### PWA Application (http://localhost:3000)
+- Modern Material-inspired design
+- Three navigation tabs: **Today**, **Week**, **Search**
+- Department filter
+- Task count summary
+- Color-coded frequency badges
+- Mobile responsive
 
-### REST API Application (Spring Boot)
-- RESTful endpoints for task retrieval
-- Filter tasks by:
-  - Date
-  - Week
-  - Month
-  - Quarter
-  - Half-Year
-  - Year
-  - Department
-- Hot-reload CSV file support
-- CORS enabled for PWA access
+### API Application (http://localhost:8080)
+- **Schedule Endpoints** (`/api/schedule/*`) - Get tasks by date/week/month/etc.
+- **Master Endpoints** (`/api/master/*`) - CRUD operations on task definitions
+- Named Ranges support for controlled dropdowns
+- Interactive API test page
 
-### PWA Application (React)
-- Modern, responsive user interface
-- View tasks by:
-  - Daily
-  - Weekly
-  - Monthly
-  - Quarterly
-  - Half-Yearly
-  - Yearly
-- Filter by department
-- Date picker for custom date selection
-- Offline-capable Progressive Web App
-- Mobile-friendly design
+### Batch Application (http://localhost:8081)
+- Scheduled emails at 7 AM and 7 PM IST
+- Manual email trigger
+- Task Master Management UI for CRUD operations
+- Beautiful HTML email templates
 
-## Tech Stack
+## Quick Start
 
-- **Backend**: Spring Boot 3.2.0 (Java 17)
-- **Frontend**: React 18 (Create React App)
-- **Containerization**: Docker & Docker Compose
-- **Data Source**: CSV file (Scheduler-Master.csv)
-- **Email**: Spring Boot Mail (SMTP)
+### Prerequisites
+- Docker Desktop
+- Google Cloud Service Account with Sheets API access
+- Gmail account for sending emails
+
+### Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/alagesan/alps-scheduler-db.git
+   cd alps-scheduler-db
+   ```
+
+2. **Configure Google Sheets**
+   - Create a Google Sheet with `Tasks-Master` tab
+   - Enable Google Sheets API in Google Cloud Console
+   - Create Service Account and download `credentials.json`
+   - Share the Google Sheet with the service account email
+
+3. **Configure environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your settings
+   ```
+
+   Required settings in `.env`:
+   ```
+   GOOGLE_SHEETS_SPREADSHEET_ID=your-spreadsheet-id
+   GOOGLE_SHEETS_SHEET_NAME=Tasks-Master
+   MAIL_USERNAME=your-email@gmail.com
+   MAIL_PASSWORD=your-app-password
+   MAIL_RECIPIENT=recipient@example.com
+   ```
+
+4. **Place credentials**
+   ```bash
+   cp ~/Downloads/credentials.json ./credentials.json
+   ```
+
+5. **Build and run**
+   ```bash
+   docker compose up --build -d
+   ```
+
+6. **Access the applications**
+   - PWA: http://localhost:3000
+   - API: http://localhost:8080
+   - Batch: http://localhost:8081
+   - Task Master: http://localhost:8081/master.html
+
+## API Reference
+
+### Schedule Endpoints (Task Retrieval)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/schedule/today` | Today's scheduled tasks |
+| GET | `/api/schedule/date/{date}` | Tasks for specific date (YYYY-MM-DD) |
+| GET | `/api/schedule/week` | Current week's tasks |
+| GET | `/api/schedule/week/{date}` | Week tasks starting from date |
+| GET | `/api/schedule/month/{year}/{month}` | Monthly tasks |
+| GET | `/api/schedule/quarter/{year}/{quarter}` | Quarterly tasks (1-4) |
+| GET | `/api/schedule/half-year/{year}/{half}` | Half-yearly tasks (1-2) |
+| GET | `/api/schedule/year/{year}` | Yearly tasks |
+| GET | `/api/schedule/range?start=&end=` | Tasks in date range |
+| GET | `/api/schedule/today/department/{dept}` | Today's tasks by department |
+
+### Master Endpoints (CRUD Operations)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/master/tasks` | All task definitions |
+| GET | `/api/master/tasks/{rowNumber}` | Single task by row |
+| POST | `/api/master/tasks` | Create new task |
+| PUT | `/api/master/tasks/{rowNumber}` | Update existing task |
+| DELETE | `/api/master/tasks/{rowNumber}` | Delete task |
+| GET | `/api/master/departments` | All departments (from Named Range) |
+| GET | `/api/master/frequencies` | All frequencies (from Named Range) |
+| GET | `/api/master/tasks/department/{dept}` | Tasks by department |
+| GET | `/api/master/tasks/frequency/{freq}` | Tasks by frequency |
+
+### Example: Create a New Task
+
+```bash
+curl -X POST http://localhost:8080/api/master/tasks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "activity": "New Task",
+    "department": "MEP",
+    "frequency": "Weekly",
+    "noOfTimes": 1,
+    "specificDates": "",
+    "comments": "Every Sunday"
+  }'
+```
+
+### Example: Update a Task
+
+```bash
+curl -X PUT http://localhost:8080/api/master/tasks/5 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "activity": "Updated Task",
+    "department": "MEP",
+    "frequency": "Daily",
+    "noOfTimes": 1,
+    "specificDates": "",
+    "comments": ""
+  }'
+```
+
+## Google Sheet Structure
+
+The `Tasks-Master` sheet should have the following columns:
+
+| Column | Field | Description | Example |
+|--------|-------|-------------|---------|
+| A | Activity | Task description | "Swimming Pool AM" |
+| B | Dept | Department | "MEP", "HouseKeeping" |
+| C | Frequency | Schedule frequency | "Daily", "Weekly", "Monthly" |
+| D | NoOfTimes | Occurrences per period | 1, 2 |
+| E | Specific Dates | For yearly tasks | "October 1" |
+| F | Comments | Additional notes | "Every Monday and Thursday" |
+
+### Named Ranges (Optional)
+
+Create Named Ranges for controlled dropdown values:
+- `Departments` - List of valid department names
+- `Frequencies` - List of valid frequencies (Daily, Weekly, Monthly, Quarterly, Half-Yearly, Yearly)
+
+If Named Ranges don't exist, the system will extract unique values from the task data.
+
+## Task Frequencies
+
+| Frequency | Schedule Logic |
+|-----------|---------------|
+| Daily | Every day, or specific days via comments |
+| Weekly | Specific weekdays (e.g., "Sunday and Wednesday") |
+| Monthly | First day of every month |
+| Quarterly | Jan 1, Apr 1, Jul 1, Oct 1 |
+| Half-Yearly | Jan 1 and Jul 1 |
+| Yearly | Specific dates (from "Specific Dates" column) |
+
+## Docker Services
+
+| Service | Container Name | Port | Purpose |
+|---------|---------------|------|---------|
+| api-app | alps-db-scheduler-api | 8080 | REST API |
+| batch-app | alps-db-scheduler-batch | 8081 | Email scheduler + Task Management UI |
+| pwa-app | alps-db-scheduler-pwa | 3000 | Web interface |
+
+## Commands
+
+```bash
+# Start all services
+docker compose up -d
+
+# Rebuild and start
+docker compose up --build -d
+
+# Stop all services
+docker compose down
+
+# View logs
+docker compose logs -f
+
+# View specific service logs
+docker logs alps-db-scheduler-api
+docker logs alps-db-scheduler-batch
+docker logs alps-db-scheduler-pwa
+```
+
+## Technology Stack
+
+- **Backend**: Java 17, Spring Boot 3.2.0, Google Sheets API v4
+- **Frontend**: React 19, Axios, date-fns
+- **Infrastructure**: Docker, Docker Compose, Nginx
+- **Email**: Spring Mail, Thymeleaf templates
+
+## Troubleshooting
+
+### Google Sheets API Error
+- Verify `credentials.json` exists in project root
+- Check service account has Editor access to the spreadsheet
+- Ensure spreadsheet is a native Google Sheet (not uploaded Excel)
+- Verify spreadsheet ID in `.env` is correct
+
+### Email Not Sending
+- Check `.env` has correct Gmail credentials
+- Use App Password, not regular password
+- View logs: `docker logs alps-db-scheduler-batch`
+
+### PWA Not Loading
+- Check API health: http://localhost:8080/api/schedule/today
+- Check browser console for CORS errors
+- Clear browser cache
+
+### Port Conflicts
+If ports are in use, modify `docker-compose.yml`:
+```yaml
+ports:
+  - "3001:80"    # Change PWA port
+  - "8082:8080"  # Change API port
+```
 
 ## Project Structure
 
 ```
-alps-scheduler/
-├── batch-app/              # Spring Boot Batch Application
-│   ├── src/
-│   ├── Dockerfile
-│   └── pom.xml
+alps-scheduler-db/
 ├── api-app/                # Spring Boot REST API
 │   ├── src/
-│   ├── Dockerfile
-│   └── pom.xml
+│   │   └── main/java/.../
+│   │       ├── controller/
+│   │       │   ├── ScheduleController.java
+│   │       │   └── TaskMasterController.java
+│   │       ├── service/
+│   │       │   ├── TaskSchedulerService.java
+│   │       │   └── GoogleSheetsService.java
+│   │       └── model/Task.java
+│   └── Dockerfile
+├── batch-app/              # Spring Boot Batch Application
+│   ├── src/
+│   │   └── main/
+│   │       ├── java/.../
+│   │       │   ├── scheduler/DailyScheduler.java
+│   │       │   ├── service/
+│   │       │   │   ├── EmailService.java
+│   │       │   │   └── GoogleSheetsService.java
+│   │       │   └── controller/BatchController.java
+│   │       └── resources/
+│   │           ├── templates/daily-schedule-email.html
+│   │           └── static/
+│   │               ├── index.html
+│   │               └── master.html
+│   └── Dockerfile
 ├── pwa-app/                # React PWA
 │   ├── src/
-│   ├── public/
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   └── package.json
-├── Scheduler-Master.csv    # Task data source
-├── docker-compose.yml      # Docker orchestration
-├── .env.example            # Environment variables template
-└── README.md
+│   │   ├── App.js
+│   │   ├── App.css
+│   │   └── services/api.js
+│   └── Dockerfile
+├── credentials.json        # Google Service Account (not in git)
+├── docker-compose.yml
+├── .env                    # Environment config (not in git)
+├── .env.example
+├── README.md
+├── QUICK_START.md
+├── IMPLEMENTATION_SUMMARY.md
+└── DEPLOYMENT_CHECKLIST.md
 ```
 
-## Prerequisites
+## Documentation
 
-- Docker and Docker Compose installed
-- For email functionality: Gmail account with App Password (or other SMTP server)
+- [Quick Start Guide](QUICK_START.md) - Get running in 10 minutes
+- [Implementation Summary](IMPLEMENTATION_SUMMARY.md) - Technical details
+- [Deployment Checklist](DEPLOYMENT_CHECKLIST.md) - Production deployment guide
 
-## Setup Instructions
+## Security Notes
 
-### 1. Clone/Navigate to Project Directory
-
-```bash
-cd /home/alpandy/al/ai-experiment/projects/alps-scheduler
-```
-
-### 2. Configure Email Settings
-
-Create a `.env` file based on `.env.example`:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and add your email credentials:
-
-```env
-MAIL_USERNAME=your-email@gmail.com
-MAIL_PASSWORD=your-app-password
-```
-
-**To generate a Gmail App Password:**
-1. Go to your Google Account settings
-2. Navigate to Security > 2-Step Verification
-3. Scroll to "App passwords"
-4. Generate a new app password for "Mail"
-5. Use this password in the .env file
-
-### 3. Ensure CSV File is Present
-
-The `Scheduler-Master.csv` file should be in the project root directory. This file contains all task scheduling information.
-
-### 4. Build and Run with Docker Compose
-
-```bash
-docker-compose up --build
-```
-
-This will:
-- Build all three applications
-- Start the containers
-- Mount the CSV file as a shared volume
-- Set up networking between containers
-
-## Accessing the Applications
-
-Once running, access the applications at:
-
-- **PWA (Frontend)**: http://localhost:3000
-- **REST API**: http://localhost:8080/api
-- **Batch App**: http://localhost:8081 (background service)
-
-## API Endpoints
-
-### Task Endpoints
-
-- `GET /api/tasks/today` - Get tasks for today
-- `GET /api/tasks/date/{date}` - Get tasks for specific date (format: YYYY-MM-DD)
-- `GET /api/tasks/week` - Get tasks for current week
-- `GET /api/tasks/week/{date}` - Get tasks for week containing the date
-- `GET /api/tasks/month/{year}/{month}` - Get tasks for specific month
-- `GET /api/tasks/quarter/{year}/{quarter}` - Get tasks for quarter (1-4)
-- `GET /api/tasks/half-year/{year}/{half}` - Get tasks for half-year (1-2)
-- `GET /api/tasks/year/{year}` - Get tasks for entire year
-- `GET /api/tasks/range?start={date}&end={date}` - Get tasks for date range
-- `GET /api/tasks/department/{department}` - Get all tasks for a department
-- `GET /api/tasks/departments` - Get list of all departments
-
-## Updating Tasks (CSV Hot-Reload)
-
-To update tasks without restarting the applications:
-
-1. Edit the `Scheduler-Master.csv` file
-2. Save the file
-3. Wait 1-2 seconds for automatic reload
-4. Both API and Batch applications will pick up the changes automatically
-
-## CSV File Format
-
-The `Scheduler-Master.csv` file has the following columns:
-
-- **Activity**: Task name/description
-- **Dept**: Department responsible (MEP, HouseKeeping, FrontOffice, FnB, Gardening)
-- **Frequency**: How often (Daily, Weekly, Monthly, Quarterly, Half-Yearly, Yearly)
-- **NoOfTimes**: Number of times per period (e.g., 2 for twice per week)
-- **Specific Dates**: Exact dates for yearly tasks (e.g., "October 1")
-- **Comments**: Additional scheduling notes (e.g., "First day of every month")
-
-## Scheduled Email Jobs
-
-The batch application runs two scheduled jobs:
-
-- **Morning Job**: 7:00 AM IST (1:30 AM UTC)
-- **Evening Job**: 7:00 PM IST (1:30 PM UTC)
-
-Each email includes:
-1. Tasks for the current day (grouped by department)
-2. Complete task schedule for the entire week
-
-## Stopping the Applications
-
-```bash
-docker-compose down
-```
-
-To remove volumes as well:
-
-```bash
-docker-compose down -v
-```
-
-## Development
-
-### Running Individual Applications Locally
-
-**API Application:**
-```bash
-cd api-app
-mvn spring-boot:run
-```
-
-**Batch Application:**
-```bash
-cd batch-app
-mvn spring-boot:run
-```
-
-**PWA Application:**
-```bash
-cd pwa-app
-npm install
-npm start
-```
-
-## Troubleshooting
-
-### Email Not Sending
-- Verify `.env` file has correct credentials
-- Check if 2-Step Verification is enabled for Gmail
-- Ensure App Password is generated (not regular password)
-- Check batch-app logs: `docker logs alps-scheduler-batch`
-
-### CSV Changes Not Reflecting
-- Wait 1-2 seconds after saving
-- Check application logs for reload messages
-- Verify file path in docker-compose.yml
-
-### PWA Not Loading Tasks
-- Ensure API is running: http://localhost:8080/api/tasks/today
-- Check browser console for errors
-- Verify CORS is enabled in API
-
-### Port Conflicts
-If ports 3000, 8080, or 8081 are already in use, modify the port mappings in `docker-compose.yml`:
-
-```yaml
-ports:
-  - "3001:80"    # Change 3000 to 3001
-```
-
-## Departments
-
-The system supports the following departments:
-- MEP (Mechanical, Electrical, Plumbing)
-- HouseKeeping
-- FrontOffice
-- FnB (Food & Beverage)
-- Gardening
+- **Never commit** `credentials.json` or `.env` to version control
+- These files are excluded via `.gitignore`
+- Use environment variables for sensitive configuration
 
 ## License
 
-Proprietary - ALPS Residency Madurai
+MIT License
 
 ## Support
 
-For issues or questions, contact the IT team at ALPS Residency Madurai.
+For issues and feature requests, please create an issue in the GitHub repository:
+https://github.com/alagesan/alps-scheduler-db

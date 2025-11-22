@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALPS DB Based Scheduler - Task Master Management</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 20px;
+        }
+
+        .nav-links {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 15px;
+        }
+
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .filter-group select, .filter-group input {
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #2c3e50;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .table-container {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 500px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #2c3e50;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .form-actions .btn {
+            flex: 1;
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .status-message.success {
+            display: block;
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.error {
+            display: block;
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .badge-daily { background: #28a745; color: white; }
+        .badge-weekly { background: #17a2b8; color: white; }
+        .badge-monthly { background: #ffc107; color: black; }
+        .badge-quarterly { background: #fd7e14; color: white; }
+        .badge-half-yearly { background: #6f42c1; color: white; }
+        .badge-yearly { background: #dc3545; color: white; }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ALPS DB Based Scheduler - Task Master Management</h1>
+        <p class="subtitle">Manage task definitions in the master sheet</p>
+
+        <div class="nav-links">
+            <a href="/">Batch Control Panel</a> |
+            <a href="/master.html">Task Master Management</a>
+        </div>
+
+        <div id="statusMessage" class="status-message"></div>
+
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-item">
+                <div class="stat-value" id="totalTasks">-</div>
+                <div class="stat-label">Total Tasks</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="totalDepts">-</div>
+                <div class="stat-label">Departments</div>
+            </div>
+        </div>
+
+        <div class="toolbar">
+            <div class="filter-group">
+                <select id="filterDepartment">
+                    <option value="">All Departments</option>
+                </select>
+                <select id="filterFrequency">
+                    <option value="">All Frequencies</option>
+                </select>
+                <input type="text" id="searchInput" placeholder="Search activities...">
+            </div>
+            <div>
+                <button class="btn btn-primary" onclick="openAddModal()">+ Add New Task</button>
+                <button class="btn btn-secondary" onclick="loadTasks()">Refresh</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Row</th>
+                        <th>Activity</th>
+                        <th>Department</th>
+                        <th>Frequency</th>
+                        <th>Times</th>
+                        <th>Specific Dates</th>
+                        <th>Comments</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tasksTableBody">
+                    <tr><td colspan="8" class="loading">Loading tasks...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div class="modal" id="taskModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New Task</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="taskForm" onsubmit="saveTask(event)">
+                <input type="hidden" id="taskRowNumber">
+
+                <div class="form-group">
+                    <label for="taskActivity">Activity *</label>
+                    <input type="text" id="taskActivity" required placeholder="Enter task activity">
+                </div>
+
+                <div class="form-group">
+                    <label for="taskDepartment">Department *</label>
+                    <select id="taskDepartment" required>
+                        <option value="">Select Department</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="taskFrequency">Frequency *</label>
+                    <select id="taskFrequency" required>
+                        <option value="">Select Frequency</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="taskNoOfTimes">Number of Times</label>
+                    <input type="number" id="taskNoOfTimes" min="1" value="1" placeholder="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="taskSpecificDates">Specific Dates</label>
+                    <input type="text" id="taskSpecificDates" placeholder="e.g., October 1, March 15">
+                </div>
+
+                <div class="form-group">
+                    <label for="taskComments">Comments</label>
+                    <textarea id="taskComments" rows="3" placeholder="Additional notes..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-success" id="saveButton">Save Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal" id="deleteModal">
+        <div class="modal-content" style="width: 400px;">
+            <div class="modal-header">
+                <h2>Confirm Delete</h2>
+                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+            </div>
+            <p style="margin-bottom: 20px;">Are you sure you want to delete this task?</p>
+            <p style="margin-bottom: 20px; font-weight: bold;" id="deleteTaskName"></p>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api/master';
+        let allTasks = [];
+        let deleteRowNumber = null;
+
+        // Load tasks on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTasks();
+            loadDepartments();
+            loadFrequencies();
+        });
+
+        // Filter event listeners
+        document.getElementById('filterDepartment').addEventListener('change', filterTasks);
+        document.getElementById('filterFrequency').addEventListener('change', filterTasks);
+        document.getElementById('searchInput').addEventListener('input', filterTasks);
+
+        async function loadTasks() {
+            const tbody = document.getElementById('tasksTableBody');
+            tbody.innerHTML = '<tr><td colspan="8" class="loading">Loading tasks...</td></tr>';
+
+            try {
+                const response = await fetch(`${API_BASE}/tasks`);
+                allTasks = await response.json();
+
+                document.getElementById('totalTasks').textContent = allTasks.length;
+
+                filterTasks();
+            } catch (error) {
+                tbody.innerHTML = '<tr><td colspan="8" class="loading" style="color: red;">Error loading tasks. Make sure the API is running.</td></tr>';
+                console.error('Error:', error);
+            }
+        }
+
+        async function loadDepartments() {
+            try {
+                const response = await fetch(`${API_BASE}/departments`);
+                const departments = await response.json();
+
+                document.getElementById('totalDepts').textContent = departments.length;
+
+                // Populate filter dropdown
+                const filterSelect = document.getElementById('filterDepartment');
+                departments.forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept;
+                    option.textContent = dept;
+                    filterSelect.appendChild(option);
+                });
+
+                // Populate modal dropdown
+                const modalSelect = document.getElementById('taskDepartment');
+                departments.forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept;
+                    option.textContent = dept;
+                    modalSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading departments:', error);
+            }
+        }
+
+        async function loadFrequencies() {
+            try {
+                const response = await fetch(`${API_BASE}/frequencies`);
+                const frequencies = await response.json();
+
+                // Populate filter dropdown
+                const filterSelect = document.getElementById('filterFrequency');
+                frequencies.forEach(freq => {
+                    const option = document.createElement('option');
+                    option.value = freq;
+                    option.textContent = freq;
+                    filterSelect.appendChild(option);
+                });
+
+                // Populate modal dropdown
+                const modalSelect = document.getElementById('taskFrequency');
+                frequencies.forEach(freq => {
+                    const option = document.createElement('option');
+                    option.value = freq;
+                    option.textContent = freq;
+                    modalSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading frequencies:', error);
+            }
+        }
+
+        function filterTasks() {
+            const deptFilter = document.getElementById('filterDepartment').value.toLowerCase();
+            const freqFilter = document.getElementById('filterFrequency').value.toLowerCase();
+            const searchFilter = document.getElementById('searchInput').value.toLowerCase();
+
+            const filtered = allTasks.filter(task => {
+                const matchDept = !deptFilter || task.department.toLowerCase() === deptFilter;
+                const matchFreq = !freqFilter || task.frequency.toLowerCase() === freqFilter;
+                const matchSearch = !searchFilter ||
+                    task.activity.toLowerCase().includes(searchFilter) ||
+                    task.comments?.toLowerCase().includes(searchFilter);
+                return matchDept && matchFreq && matchSearch;
+            });
+
+            renderTasks(filtered);
+        }
+
+        function renderTasks(tasks) {
+            const tbody = document.getElementById('tasksTableBody');
+
+            if (tasks.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="loading">No tasks found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = tasks.map(task => `
+                <tr>
+                    <td>${task.rowNumber}</td>
+                    <td>${escapeHtml(task.activity)}</td>
+                    <td>${escapeHtml(task.department)}</td>
+                    <td><span class="badge badge-${task.frequency.toLowerCase().replace('-', '-')}">${task.frequency}</span></td>
+                    <td>${task.noOfTimes || '-'}</td>
+                    <td>${escapeHtml(task.specificDates || '-')}</td>
+                    <td>${escapeHtml(task.comments || '-')}</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" onclick="openEditModal(${task.rowNumber})">Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="openDeleteModal(${task.rowNumber}, '${escapeHtml(task.activity)}')">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = 'Add New Task';
+            document.getElementById('taskForm').reset();
+            document.getElementById('taskRowNumber').value = '';
+            document.getElementById('taskNoOfTimes').value = '1';
+            document.getElementById('taskModal').classList.add('active');
+        }
+
+        function openEditModal(rowNumber) {
+            const task = allTasks.find(t => t.rowNumber === rowNumber);
+            if (!task) return;
+
+            document.getElementById('modalTitle').textContent = 'Edit Task';
+            document.getElementById('taskRowNumber').value = rowNumber;
+            document.getElementById('taskActivity').value = task.activity || '';
+            document.getElementById('taskDepartment').value = task.department || '';
+            document.getElementById('taskFrequency').value = task.frequency || '';
+            document.getElementById('taskNoOfTimes').value = task.noOfTimes || 1;
+            document.getElementById('taskSpecificDates').value = task.specificDates || '';
+            document.getElementById('taskComments').value = task.comments || '';
+            document.getElementById('taskModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('taskModal').classList.remove('active');
+        }
+
+        function openDeleteModal(rowNumber, activityName) {
+            deleteRowNumber = rowNumber;
+            document.getElementById('deleteTaskName').textContent = activityName;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+            deleteRowNumber = null;
+        }
+
+        async function saveTask(event) {
+            event.preventDefault();
+
+            const rowNumber = document.getElementById('taskRowNumber').value;
+            const task = {
+                activity: document.getElementById('taskActivity').value,
+                department: document.getElementById('taskDepartment').value,
+                frequency: document.getElementById('taskFrequency').value,
+                noOfTimes: parseInt(document.getElementById('taskNoOfTimes').value) || 1,
+                specificDates: document.getElementById('taskSpecificDates').value,
+                comments: document.getElementById('taskComments').value
+            };
+
+            const saveButton = document.getElementById('saveButton');
+            saveButton.disabled = true;
+            saveButton.textContent = 'Saving...';
+
+            try {
+                let response;
+                if (rowNumber) {
+                    // Update existing task
+                    response = await fetch(`${API_BASE}/tasks/${rowNumber}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(task)
+                    });
+                } else {
+                    // Create new task
+                    response = await fetch(`${API_BASE}/tasks`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(task)
+                    });
+                }
+
+                if (response.ok) {
+                    showStatus('success', rowNumber ? 'Task updated successfully!' : 'Task created successfully!');
+                    closeModal();
+                    loadTasks();
+                } else {
+                    const error = await response.text();
+                    showStatus('error', 'Error saving task: ' + error);
+                }
+            } catch (error) {
+                showStatus('error', 'Error saving task: ' + error.message);
+            } finally {
+                saveButton.disabled = false;
+                saveButton.textContent = 'Save Task';
+            }
+        }
+
+        async function confirmDelete() {
+            if (!deleteRowNumber) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/tasks/${deleteRowNumber}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showStatus('success', 'Task deleted successfully!');
+                    closeDeleteModal();
+                    loadTasks();
+                } else {
+                    showStatus('error', 'Error deleting task');
+                }
+            } catch (error) {
+                showStatus('error', 'Error deleting task: ' + error.message);
+            }
+        }
+
+        function showStatus(type, message) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.className = 'status-message ' + type;
+            statusDiv.textContent = message;
+
+            setTimeout(() => {
+                statusDiv.className = 'status-message';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

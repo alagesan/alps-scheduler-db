@@ -16,13 +16,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class TaskSchedulerService {
 
-    private final CsvParserService csvParserService;
+    private final GoogleSheetsService googleSheetsService;
 
     /**
      * Get tasks for a specific date
      */
     public List<Task> getTasksForDate(LocalDate date) {
-        List<Task> allTasks = csvParserService.getAllTasks();
+        List<Task> allTasks = googleSheetsService.getAllTasks();
         return allTasks.stream()
                 .filter(task -> isTaskScheduledForDate(task, date))
                 .collect(Collectors.toList());
@@ -98,22 +98,56 @@ public class TaskSchedulerService {
      * Get tasks by department
      */
     public List<Task> getTasksByDepartment(String department) {
-        List<Task> allTasks = csvParserService.getAllTasks();
-        return allTasks.stream()
-                .filter(task -> task.getDepartment().equalsIgnoreCase(department))
-                .collect(Collectors.toList());
+        return googleSheetsService.getTasksByDepartment(department);
     }
 
     /**
-     * Get all unique departments
+     * Get all departments from Named Range
      */
     public List<String> getAllDepartments() {
-        List<Task> allTasks = csvParserService.getAllTasks();
-        return allTasks.stream()
-                .map(Task::getDepartment)
-                .distinct()
-                .sorted()
-                .collect(Collectors.toList());
+        return googleSheetsService.getAllDepartments();
+    }
+
+    /**
+     * Get all frequencies from Named Range
+     */
+    public List<String> getAllFrequencies() {
+        return googleSheetsService.getAllFrequencies();
+    }
+
+    /**
+     * Get all tasks
+     */
+    public List<Task> getAllTasks() {
+        return googleSheetsService.getAllTasks();
+    }
+
+    /**
+     * Create a new task
+     */
+    public Task createTask(Task task) {
+        return googleSheetsService.createTask(task);
+    }
+
+    /**
+     * Update an existing task
+     */
+    public Task updateTask(int rowNumber, Task task) {
+        return googleSheetsService.updateTask(rowNumber, task);
+    }
+
+    /**
+     * Delete a task
+     */
+    public void deleteTask(int rowNumber) {
+        googleSheetsService.deleteTask(rowNumber);
+    }
+
+    /**
+     * Get task by row number
+     */
+    public Optional<Task> getTaskByRowNumber(int rowNumber) {
+        return googleSheetsService.getTaskByRowNumber(rowNumber);
     }
 
     /**
